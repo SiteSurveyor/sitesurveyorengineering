@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.succeed.sitesurveyor",
   "build": {
-    "beforeDevCommand": "npm --prefix ./frontend run dev || npm --prefix ../frontend run dev",
-    "beforeBuildCommand": "npm --prefix ./frontend run build || npm --prefix ../frontend run build",
+    "beforeDevCommand": "node -e \"const {spawnSync}=require('node:child_process');const {existsSync}=require('node:fs');const p=existsSync('frontend/package.json')?'frontend':'../frontend';const r=spawnSync('npm',['--prefix',p,'run','dev'],{stdio:'inherit',shell:true});process.exit(r.status??1);\"",
+    "beforeBuildCommand": "node -e \"const {spawnSync}=require('node:child_process');const {existsSync}=require('node:fs');const p=existsSync('frontend/package.json')?'frontend':'../frontend';const r=spawnSync('npm',['--prefix',p,'run','build'],{stdio:'inherit',shell:true});process.exit(r.status??1);\"",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../frontend/dist"
   },
