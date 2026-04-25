@@ -111,13 +111,31 @@ jobs:
         working-directory: backend
         run: npx --prefix ../frontend tauri android build --apk --aab
 
+      - name: Sign release APK
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          UNSIGNED_APK="backend/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk"
+          SIGNED_APK="backend/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk"
+          APKSIGNER="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | awk 'END{print}')"
+          test -f "$UNSIGNED_APK"
+          "$APKSIGNER" sign \
+            --ks "$RUNNER_TEMP/keystore.jks" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass "pass:$ANDROID_KEY_PASSWORD" \
+            --key-pass "pass:$ANDROID_KEY_PASSWORD" \
+            --out "$SIGNED_APK" \
+            "$UNSIGNED_APK"
+          "$APKSIGNER" verify --print-certs "$SIGNED_APK"
+
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android
           path: |
-            backend/gen/android/app/build/outputs/**/*.apk
-            backend/gen/android/app/build/outputs/**/*.aab
+            backend/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+            backend/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
           if-no-files-found: error
 
   publish-release:
@@ -142,7 +160,7 @@ jobs:
             release-artifacts/**/*.dmg
             release-artifacts/**/*-setup.exe
             release-artifacts/**/*.msi
-            release-artifacts/**/*.apk
+            release-artifacts/**/app-universal-release.apk
             release-artifacts/**/*.aab
           draft: false
           prerelease: false
