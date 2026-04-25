@@ -183,7 +183,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
     <>
       <div className="hub-body ast-body">
         {error && (
-          <div style={{ padding: "12px 16px", background: "#fef2f2", color: "#dc2626", borderRadius: "8px", fontSize: "13px", marginBottom: "16px" }}>
+          <div style={{ padding: "12px 16px", background: "var(--surface-muted)", color: "#dc2626", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "13px", marginBottom: "16px" }}>
             {error}
           </div>
         )}
@@ -200,7 +200,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
               style={{
                 fontSize: "22px",
                 fontWeight: 700,
-                color: "#0f172a",
+                color: "var(--text-h)",
                 margin: 0,
                 letterSpacing: "-0.4px",
               }}
@@ -208,7 +208,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
               My Instruments
             </h1>
             <p
-              style={{ margin: "2px 0 0", fontSize: "13px", color: "#64748b" }}
+              style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--text)" }}
             >
               Track, calibrate and deploy your survey fleet
             </p>
@@ -446,7 +446,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                       fontSize: "11px",
                       textTransform: "uppercase",
                       letterSpacing: "0.5px",
-                      color: "#64748b",
+                      color: "var(--text)",
                     }}
                   >
                     ASSET ID
@@ -457,7 +457,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                       fontSize: "11px",
                       textTransform: "uppercase",
                       letterSpacing: "0.5px",
-                      color: "#64748b",
+                      color: "var(--text)",
                     }}
                   >
                     EQUIPMENT
@@ -468,7 +468,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                       fontSize: "11px",
                       textTransform: "uppercase",
                       letterSpacing: "0.5px",
-                      color: "#64748b",
+                      color: "var(--text)",
                       textAlign: "center",
                     }}
                   >
@@ -480,7 +480,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                       fontSize: "11px",
                       textTransform: "uppercase",
                       letterSpacing: "0.5px",
-                      color: "#64748b",
+                      color: "var(--text)",
                     }}
                   >
                     LOCATION / ASSIGNMENT
@@ -491,7 +491,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                       fontSize: "11px",
                       textTransform: "uppercase",
                       letterSpacing: "0.5px",
-                      color: "#64748b",
+                      color: "var(--text)",
                     }}
                   >
                     NEXT CALIBRATION
@@ -514,7 +514,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                         borderBottom: "1px solid var(--border)",
                       }}
                       onMouseOver={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#f8fafc")
+                        (e.currentTarget.style.backgroundColor = "var(--table-row-hover-bg)")
                       }
                       onMouseOut={(e) =>
                         (e.currentTarget.style.backgroundColor = "transparent")
@@ -527,7 +527,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           <span
                             style={{
                               fontWeight: 700,
-                              color: "#0f172a",
+                              color: "var(--text-h)",
                               fontSize: "14.5px",
                             }}
                           >
@@ -536,7 +536,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           <code
                             style={{
                               fontSize: "12px",
-                              color: "#64748b",
+                              color: "var(--text)",
                               marginTop: "2px",
                             }}
                           >
@@ -551,15 +551,13 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           <span
                             style={{
                               fontWeight: 600,
-                              color: "#334155",
+                              color: "var(--text-h)",
                               fontSize: "14px",
                             }}
                           >
                             {inst.name}
                           </span>
-                          <span
-                            style={{ fontSize: "12.5px", color: "#64748b" }}
-                          >
+                          <span style={{ fontSize: "12.5px", color: "var(--text)" }}>
                             {inst.type}
                           </span>
                         </div>
@@ -586,13 +584,13 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           <span
                             style={{
                               fontSize: "14px",
-                              color: "#0f172a",
+                              color: "var(--text-h)",
                               fontWeight: 500,
                             }}
                           >
                             {inst.assignedTo || "—"}
                           </span>
-                          <span style={{ fontSize: "12px", color: "#64748b" }}>
+                          <span style={{ fontSize: "12px", color: "var(--text)" }}>
                             {inst.assignedProject}
                           </span>
                         </div>
@@ -604,7 +602,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           <span
                             style={{
                               fontSize: "13px",
-                              color: "#334155",
+                              color: "var(--text-h)",
                               fontWeight: 600,
                             }}
                           >
@@ -635,7 +633,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           style={{
                             background: "none",
                             border: "none",
-                            color: "#64748b",
+                            color: "var(--text)",
                             cursor: "pointer",
                             padding: "6px",
                             borderRadius: "6px",

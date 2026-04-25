@@ -1,5 +1,11 @@
 import type { AppUserContext } from "../../lib/auth/app-user.ts";
-import type { AccountType, UiUser, WorkspaceView } from "./types.ts";
+import type {
+  AccountType,
+  LicenseStatus,
+  LicenseTier,
+  UiUser,
+  WorkspaceView,
+} from "./types.ts";
 
 export const SHARED_VIEWS: WorkspaceView[] = [
   "dashboard",
@@ -13,25 +19,53 @@ export const SHARED_VIEWS: WorkspaceView[] = [
   "profile",
   "schedule",
   "billing",
+  "timeTracking",
 ];
 
 export const PERSONAL_ONLY_VIEWS: WorkspaceView[] = ["invoices", "contacts"];
 
 export const BUSINESS_ONLY_VIEWS: WorkspaceView[] = ["dispatch", "team"];
 
-export function getAllowedViews(accountType: AccountType): Set<WorkspaceView> {
-  return new Set(
+const FREE_BLOCKED_VIEWS: WorkspaceView[] = ["dispatch", "team", "timeTracking"];
+const INACTIVE_LICENSE_ALLOWED_VIEWS: WorkspaceView[] = [
+  "dashboard",
+  "billing",
+  "profile",
+];
+
+export function getAllowedViews(
+  accountType: AccountType,
+  licenseTier: LicenseTier = "free",
+  licenseStatus: LicenseStatus = "active",
+): Set<WorkspaceView> {
+  const accountViews = new Set(
     accountType === "business"
       ? [...SHARED_VIEWS, ...BUSINESS_ONLY_VIEWS]
       : [...SHARED_VIEWS, ...PERSONAL_ONLY_VIEWS],
   );
+
+  if (!["active", "trialing"].includes(licenseStatus)) {
+    return new Set(
+      INACTIVE_LICENSE_ALLOWED_VIEWS.filter((view) => accountViews.has(view)),
+    );
+  }
+
+  if (licenseTier === "free") {
+    FREE_BLOCKED_VIEWS.forEach((view) => accountViews.delete(view));
+  }
+
+  return accountViews;
 }
 
 export function getAccessibleView(
   accountType: AccountType,
   requestedView: WorkspaceView,
+  licenseTier: LicenseTier = "free",
+  licenseStatus: LicenseStatus = "active",
 ): WorkspaceView {
-  return getAllowedViews(accountType).has(requestedView)
+  return getAllowedViews(accountType, licenseTier, licenseStatus).has(
+    requestedView,
+  )
     ? requestedView
     : "dashboard";
 }
@@ -77,5 +111,7 @@ export function mapAppUserToUiUser(input: AppUserContext): UiUser | null {
           "My Workspace"
         : "Independent Surveyor",
     accountType,
+    licenseTier: input.workspaceLicense?.tier ?? "free",
+    licenseStatus: input.workspaceLicense?.status ?? "active",
   };
 }

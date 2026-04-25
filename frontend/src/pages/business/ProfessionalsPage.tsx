@@ -25,6 +25,7 @@ export default function ProfessionalsPage({ workspaceId }: ProfessionalsPageProp
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [professionals, setProfessionals] = useState<ProfessionalRow[]>([])
+  const [page, setPage] = useState(1)
 
   const fetchPros = useCallback(async () => {
     try {
@@ -57,6 +58,17 @@ export default function ProfessionalsPage({ workspaceId }: ProfessionalsPageProp
     }
     return true
   })
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize)
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, discFilter])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
 
   if (loading) {
     return (
@@ -75,12 +87,8 @@ export default function ProfessionalsPage({ workspaceId }: ProfessionalsPageProp
       )}
       <header className="page-header pro-page-header">
         <div>
-          <h1>Hire Professionals</h1>
-          <p className="page-subtitle">Find and hire qualified surveyors and geomaticians across Zimbabwe</p>
-        </div>
-        <div className="header-actions">
-          <button className="btn btn-outline">My Contracts</button>
-          <button className="btn btn-primary">+ List Your Profile</button>
+          <h1>Professionals Directory</h1>
+          <p className="page-subtitle">Browse qualified surveyors and geomaticians across Zimbabwe</p>
         </div>
       </header>
 
@@ -177,7 +185,6 @@ export default function ProfessionalsPage({ workspaceId }: ProfessionalsPageProp
             </div>
 
             <div className="mkt-modal-actions">
-              <button className="btn btn-primary">Send Enquiry</button>
               <button className="btn btn-outline" onClick={() => setSelectedPro(null)}>Close</button>
             </div>
           </div>
@@ -198,7 +205,7 @@ export default function ProfessionalsPage({ workspaceId }: ProfessionalsPageProp
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
+            {paginated.map((p) => (
               <tr key={p.id} className="pro-row" onClick={() => setSelectedPro(p)}>
                 <td className="pro-cell-person">
                   <div className="pro-row-person">
@@ -246,6 +253,13 @@ export default function ProfessionalsPage({ workspaceId }: ProfessionalsPageProp
           <div className="pro-empty">
             <h3>No professionals found</h3>
             <p>Try adjusting your search or filter criteria.</p>
+          </div>
+        )}
+        {filtered.length > pageSize && (
+          <div className="list-pagination">
+            <button className="btn btn-outline btn-sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Previous</button>
+            <span className="list-pagination-label">Page {page} / {totalPages}</span>
+            <button className="btn btn-outline btn-sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</button>
           </div>
         )}
       </div>

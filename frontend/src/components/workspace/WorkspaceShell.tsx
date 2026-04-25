@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import "../../styles/project-hub.css";
+import { useServerStatus } from "../../lib/serverStatus.ts";
 import type {
   AccountType,
   UiUser,
@@ -69,6 +70,24 @@ function CalendarIcon() {
       <line x1="16" y1="2" x2="16" y2="6" />
       <line x1="8" y1="2" x2="8" y2="6" />
       <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
@@ -400,6 +419,8 @@ function getNavIcon(icon: string) {
       return <DashboardIcon />;
     case "calendar":
       return <CalendarIcon />;
+    case "clock":
+      return <ClockIcon />;
     case "folder":
       return <FolderIcon />;
     case "file-manager":
@@ -435,10 +456,17 @@ function WorkspaceTopbar({
 }: WorkspaceTopbarProps) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const serverStatus = useServerStatus();
   const accountClassName = useMemo<AccountType>(
     () => user.accountType,
     [user.accountType],
   );
+  const statusLabel =
+    serverStatus === "online"
+      ? "Online"
+      : serverStatus === "offline"
+        ? "Offline"
+        : "Checking...";
 
   const closeMenu = () => setProfileDropdownOpen(false);
 
@@ -451,6 +479,15 @@ function WorkspaceTopbar({
         </div>
 
         <div className="hub-topbar-right">
+          <div
+            className={`hub-status-pill ${serverStatus}`}
+            aria-live="polite"
+            aria-label={`Server status: ${statusLabel}`}
+          >
+            <span className="hub-status-dot" />
+            <span>{statusLabel}</span>
+          </div>
+
           <div className="hub-profile-wrap">
             <button
               className="hub-avatar-btn"
@@ -544,59 +581,26 @@ function WorkspaceTopbar({
           <div
             className="hub-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "400px", textAlign: "center" }}
+            style={{ maxWidth: "400px" }}
           >
-            <div
-              style={{
-                margin: "0 auto 20px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
+            <div className="hub-about-logo-wrap">
               <img
                 src="/logo.svg"
                 alt="SiteSurveyor Logo"
-                style={{ width: "64px", height: "64px" }}
+                className="hub-about-logo"
               />
             </div>
 
-            <h2
-              style={{
-                margin: "0 0 8px",
-                color: "var(--text-h)",
-                fontSize: "24px",
-              }}
-            >
+            <h2 className="hub-about-title">
               SiteSurveyor for Engineers
             </h2>
 
-            <p
-              style={{
-                margin: "0 0 24px",
-                color: "var(--text)",
-                fontSize: "15px",
-              }}
-            >
+            <p className="hub-about-version">
               Version 2.0
             </p>
 
-            <div
-              style={{
-                background: "#f8fafc",
-                padding: "16px",
-                borderRadius: "8px",
-                marginBottom: "24px",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "14px",
-                  color: "var(--text-h)",
-                  fontWeight: 500,
-                }}
-              >
+            <div className="hub-about-company-card">
+              <p className="hub-about-company-text">
                 A product of <strong>Eineva Incorporated</strong>
               </p>
             </div>

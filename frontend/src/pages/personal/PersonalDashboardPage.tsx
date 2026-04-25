@@ -3,6 +3,9 @@ import "../../styles/pages.css";
 import "../../styles/project-hub.css";
 import { listProjects, type ProjectWithOrg } from "../../lib/repositories/projects.ts";
 import { listInvoices, type InvoiceWithDetails } from "../../lib/repositories/invoices.ts";
+import { listCalibrations, listAssets } from "../../lib/repositories/assets.ts";
+import { listJobEvents, type JobEventRow } from "../../lib/repositories/jobEvents.ts";
+import { listQuotes } from "../../lib/repositories/quotes.ts";
 
 interface PersonalDashboardPageProps {
   userName?: string;
@@ -29,16 +32,88 @@ export default function PersonalDashboardPage({
 }: PersonalDashboardPageProps) {
   const [projects, setProjects] = useState<ProjectWithOrg[]>([]);
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
+  const [nextCalibrationDays, setNextCalibrationDays] = useState<number | null>(null);
+  const [taskItems, setTaskItems] = useState<string[]>([]);
+  const [todayEvents, setTodayEvents] = useState<JobEventRow[]>([]);
+  const [assetSnapshot, setAssetSnapshot] = useState<
+    { name: string; status: string; color: string }[]
+  >([]);
   
   useEffect(() => {
     if (!workspaceId) return;
     
     Promise.all([
       listProjects(workspaceId).catch(() => []),
-      listInvoices(workspaceId).catch(() => [])
-    ]).then(([p, i]) => {
+      listInvoices(workspaceId).catch(() => []),
+      listCalibrations(workspaceId).catch(() => []),
+      listJobEvents(workspaceId).catch(() => []),
+      listAssets(workspaceId).catch(() => []),
+      listQuotes(workspaceId).catch(() => []),
+    ]).then(([p, i, calibrations, events, assets, quotes]) => {
       setProjects(p);
       setInvoices(i);
+      const upcomingCalibrations = calibrations
+        .filter((item) => item.next_calibration_date)
+        .sort((a, b) =>
+          (a.next_calibration_date ?? "").localeCompare(b.next_calibration_date ?? ""),
+        );
+      if (upcomingCalibrations.length > 0) {
+        const nextDate = new Date(upcomingCalibrations[0].next_calibration_date!);
+        const dayDiff = Math.max(
+          0,
+          Math.ceil((nextDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        );
+        setNextCalibrationDays(dayDiff);
+      } else {
+        setNextCalibrationDays(null);
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      setTodayEvents(events.filter((event) => event.event_date === today).slice(0, 2));
+
+      const pendingInvoiceCount = i.filter(
+        (invoice) =>
+          invoice.status === "draft" ||
+          invoice.status === "sent" ||
+          invoice.status === "overdue",
+      ).length;
+      const activeProjectCount = p.filter((project) => project.status === "active").length;
+      const sentQuotes = quotes.filter(
+        (quote) => quote.status === "draft" || quote.status === "sent",
+      ).length;
+      const dueSoonCalibrations = upcomingCalibrations.filter((item) => {
+        if (!item.next_calibration_date) return false;
+        const due = new Date(item.next_calibration_date);
+        const windowEnd = new Date();
+        windowEnd.setDate(windowEnd.getDate() + 14);
+        return due <= windowEnd;
+      }).length;
+      setTaskItems([
+        `${activeProjectCount} active project${activeProjectCount === 1 ? "" : "s"} need tracking`,
+        `${pendingInvoiceCount} pending invoice${pendingInvoiceCount === 1 ? "" : "s"} need follow-up`,
+        `${sentQuotes} quote${sentQuotes === 1 ? "" : "s"} are waiting for client decision`,
+        `${dueSoonCalibrations} calibration${dueSoonCalibrations === 1 ? "" : "s"} due within 14 days`,
+      ]);
+
+      setAssetSnapshot(
+        assets.slice(0, 3).map((asset) => ({
+          name: asset.name,
+          status:
+            asset.status === "available"
+              ? "Ready"
+              : asset.status === "maintenance"
+                ? "Service Soon"
+                : asset.status === "deployed"
+                  ? "In Use"
+                  : "Unavailable",
+          color:
+            asset.status === "available"
+              ? "#15803d"
+              : asset.status === "maintenance"
+                ? "#b45309"
+                : "#475569",
+        })),
+      );
     });
   }, [workspaceId]);
 
@@ -156,7 +231,7 @@ export default function PersonalDashboardPage({
             className="invoice-summary-value"
             style={{ fontSize: "32px", color: "var(--text-h)" }}
           >
-            -- Days
+            {nextCalibrationDays == null ? "-- Days" : `${nextCalibrationDays} Days`}
           </span>
           <p
             style={{
@@ -165,7 +240,7 @@ export default function PersonalDashboardPage({
               color: "var(--text)",
             }}
           >
-            No assets tracked
+            {nextCalibrationDays == null ? "No calibration schedule found" : "until next calibration"}
           </p>
         </div>
       </div>
@@ -173,11 +248,11 @@ export default function PersonalDashboardPage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 340px",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 340px)",
           gap: "24px",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", minWidth: 0 }}>
           <div className="card">
             <div
               className="card-header"
@@ -238,7 +313,7 @@ export default function PersonalDashboardPage({
               style={{
                 width: "100%",
                 padding: "12px",
-                background: "#f8fafc",
+                background: "var(--surface-muted)",
                 border: "none",
                 color: "var(--accent)",
                 fontWeight: 600,
@@ -271,11 +346,7 @@ export default function PersonalDashboardPage({
                 padding: "16px",
               }}
             >
-              {[
-                "Confirm boundary beacon coordinates for Stand 432",
-                "Prepare invoice for Borrowdale topo deliverable",
-                "Book calibration slot for Leica GS18 rover",
-              ].map((task) => (
+              {taskItems.map((task) => (
                 <div
                   key={task}
                   style={{
@@ -305,20 +376,25 @@ export default function PersonalDashboardPage({
                   </span>
                 </div>
               ))}
+              {taskItems.length === 0 && (
+                <div style={{ fontSize: "13px", color: "var(--text)" }}>
+                  No priority tasks available.
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", minWidth: 0 }}>
           <div
             className="card"
-            style={{ background: "#f8f6ff", borderColor: "#e0d4fc" }}
+            style={{ background: "var(--surface-muted)", borderColor: "var(--accent-border)" }}
           >
             <div
               className="card-header"
               style={{
                 paddingBottom: "16px",
-                borderBottom: "1px solid #e0d4fc",
+                borderBottom: "1px solid var(--accent-border)",
               }}
             >
               <h2
@@ -336,80 +412,50 @@ export default function PersonalDashboardPage({
                 gap: "16px",
               }}
             >
-              <div style={{ display: "flex", gap: "12px" }}>
-                <div
-                  style={{
-                    color: "var(--accent)",
-                    fontWeight: 700,
-                    fontSize: "13px",
-                    paddingTop: "2px",
-                    minWidth: "50px",
-                  }}
-                >
-                  08:00
-                </div>
-                <div
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #e0d4fc",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    flex: 1,
-                    boxShadow: "0 1px 2px rgba(139, 92, 246, 0.05)",
-                  }}
-                >
+              {todayEvents.map((event, idx) => (
+                <div key={event.id} style={{ display: "flex", gap: "12px" }}>
                   <div
                     style={{
-                      fontWeight: 600,
-                      color: "var(--text-h)",
-                      fontSize: "14px",
-                      marginBottom: "4px",
+                      color: idx === 0 ? "var(--accent)" : "var(--text)",
+                      fontWeight: idx === 0 ? 700 : 600,
+                      fontSize: "13px",
+                      paddingTop: "2px",
+                      minWidth: "50px",
                     }}
                   >
-                    Field Visit: Stand 432
+                    {event.start_time ? event.start_time.slice(0, 5) : "All day"}
                   </div>
-                  <div style={{ color: "var(--text)", fontSize: "12px" }}>
-                    Boundary verification and beacon check
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "12px" }}>
-                <div
-                  style={{
-                    color: "var(--text)",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                    paddingTop: "2px",
-                    minWidth: "50px",
-                  }}
-                >
-                  14:30
-                </div>
-                <div
-                  style={{
-                    background: "#fff",
-                    border: "1px solid var(--border)",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    flex: 1,
-                  }}
-                >
                   <div
                     style={{
-                      fontWeight: 600,
-                      color: "var(--text-h)",
-                      fontSize: "14px",
-                      marginBottom: "4px",
+                      background: "var(--surface)",
+                      border: idx === 0 ? "1px solid var(--accent-border)" : "1px solid var(--border)",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      flex: 1,
+                      boxShadow: idx === 0 ? "0 1px 2px rgba(139, 92, 246, 0.05)" : "none",
                     }}
                   >
-                    Client Call
-                  </div>
-                  <div style={{ color: "var(--text)", fontSize: "12px" }}>
-                    Review draft subdivision sketch and next steps
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--text-h)",
+                        fontSize: "14px",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      {event.title}
+                    </div>
+                    <div style={{ color: "var(--text)", fontSize: "12px" }}>
+                      {event.notes || event.event_type || "Scheduled activity"}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
+              {todayEvents.length === 0 && (
+                <div style={{ color: "var(--text)", fontSize: "13px" }}>
+                  No schedule events for today.
+                </div>
+              )}
             </div>
 
             <button
@@ -421,7 +467,7 @@ export default function PersonalDashboardPage({
                 color: "var(--accent)",
                 fontWeight: 600,
                 cursor: "pointer",
-                borderTop: "1px solid #e0d4fc",
+                borderTop: "1px solid var(--accent-border)",
               }}
             >
               Open Full Schedule
@@ -449,68 +495,34 @@ export default function PersonalDashboardPage({
                 gap: "12px",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                }}
-              >
-                <span style={{ fontSize: "13px", color: "var(--text)" }}>
-                  Leica GS18 GNSS Rover
-                </span>
-                <span
+              {assetSnapshot.map((asset) => (
+                <div
+                  key={asset.name}
                   style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#15803d",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
                   }}
                 >
-                  Ready
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                }}
-              >
-                <span style={{ fontSize: "13px", color: "var(--text)" }}>
-                  Trimble S5 Total Station
-                </span>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#b45309",
-                  }}
-                >
-                  Service Soon
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                }}
-              >
-                <span style={{ fontSize: "13px", color: "var(--text)" }}>
-                  Field Tablet
-                </span>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#15803d",
-                  }}
-                >
-                  Synced
-                </span>
-              </div>
+                  <span style={{ fontSize: "13px", color: "var(--text)" }}>
+                    {asset.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: asset.color,
+                    }}
+                  >
+                    {asset.status}
+                  </span>
+                </div>
+              ))}
+              {assetSnapshot.length === 0 && (
+                <div style={{ fontSize: "13px", color: "var(--text)" }}>
+                  No assets tracked yet.
+                </div>
+              )}
             </div>
           </div>
         </div>

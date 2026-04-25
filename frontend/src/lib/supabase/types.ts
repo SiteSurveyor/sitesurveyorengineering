@@ -986,7 +986,7 @@ export type Database = {
           id: string;
           onboarding_complete: boolean;
           phone: string | null;
-          pls_license: string | null;
+          promo_code: string | null;
           professional_title: string | null;
           updated_at: string;
         };
@@ -1000,7 +1000,7 @@ export type Database = {
           id: string;
           onboarding_complete?: boolean;
           phone?: string | null;
-          pls_license?: string | null;
+          promo_code?: string | null;
           professional_title?: string | null;
           updated_at?: string;
         };
@@ -1014,7 +1014,7 @@ export type Database = {
           id?: string;
           onboarding_complete?: boolean;
           phone?: string | null;
-          pls_license?: string | null;
+          promo_code?: string | null;
           professional_title?: string | null;
           updated_at?: string;
         };

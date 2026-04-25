@@ -9,22 +9,25 @@ export type WorkspaceMemberUpdate = TablesUpdate<"workspace_members">;
 export interface WorkspaceMemberWithProfile extends WorkspaceMemberRow {
   full_name: string | null;
   professional_title: string | null;
-  pls_license: string | null;
+  promo_code: string | null;
   email: string | null;
   phone: string | null;
 }
 
 export async function listWorkspaceMembers(
   workspaceId: string,
+  options?: { statuses?: WorkspaceMemberRow["status"][] },
 ): Promise<WorkspaceMemberWithProfile[]> {
   const user = await getCurrentUser();
   if (!user) return [];
+
+  const statusFilter = options?.statuses ?? ["active", "invited", "suspended"];
 
   const { data, error } = await supabase
     .from("workspace_members")
     .select("*")
     .eq("workspace_id", workspaceId)
-    .eq("status", "active")
+    .in("status", statusFilter)
     .order("created_at");
 
   if (error) throw error;
@@ -33,7 +36,7 @@ export async function listWorkspaceMembers(
   const userIds = data.map((m) => m.user_id);
   const { data: profiles, error: profileError } = await supabase
     .from("profiles")
-    .select("id, full_name, professional_title, pls_license, email, phone")
+    .select("id, full_name, professional_title, promo_code, email, phone")
     .in("id", userIds);
 
   if (profileError) throw profileError;
@@ -48,7 +51,7 @@ export async function listWorkspaceMembers(
       ...member,
       full_name: profile?.full_name ?? null,
       professional_title: profile?.professional_title ?? null,
-      pls_license: profile?.pls_license ?? null,
+      promo_code: profile?.promo_code ?? null,
       email: profile?.email ?? null,
       phone: profile?.phone ?? null,
     };

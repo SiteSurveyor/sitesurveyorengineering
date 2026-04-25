@@ -5,11 +5,13 @@ import "../../styles/auth.css";
 interface LoginPageProps {
   onLoginSuccess: () => Promise<void> | void;
   onGoToSignup: () => void;
+  onForgotPassword: () => void;
 }
 
 export default function LoginPage({
   onLoginSuccess,
   onGoToSignup,
+  onForgotPassword,
 }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,7 +50,7 @@ export default function LoginPage({
       <div className="auth-card">
         <div className="auth-header">
           <img src="/logo.svg" alt="SiteSurveyor" className="auth-logo" />
-          <h1 className="auth-brand">SiteSurveyor</h1>
+          <h1 className="auth-brand">SiteSurveyor for Engineers</h1>
           <p className="auth-tagline">Sign in to your engineering workspace</p>
         </div>
 
@@ -118,7 +120,9 @@ export default function LoginPage({
           </div>
 
           <div className="forgot-link">
-            <button type="button">Forgot password?</button>
+            <button type="button" onClick={onForgotPassword}>
+              Forgot password?
+            </button>
           </div>
 
           {error && <p className="form-error">{error}</p>}

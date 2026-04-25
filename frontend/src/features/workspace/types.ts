@@ -1,4 +1,11 @@
 export type AccountType = "personal" | "business";
+export type LicenseTier = "free" | "pro" | "enterprise";
+export type LicenseStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "suspended"
+  | "cancelled";
 
 export type WorkspaceView =
   | "dashboard"
@@ -15,7 +22,8 @@ export type WorkspaceView =
   | "schedule"
   | "invoices"
   | "billing"
-  | "contacts";
+  | "contacts"
+  | "timeTracking";
 
 export interface UiUser {
   workspaceId: string;
@@ -23,6 +31,8 @@ export interface UiUser {
   email: string;
   company: string;
   accountType: AccountType;
+  licenseTier: LicenseTier;
+  licenseStatus: LicenseStatus;
 }
 
 export interface WorkspaceNavItem {

@@ -229,6 +229,18 @@ export async function createProjectActivity(
   return data;
 }
 
+export async function deleteProjectActivity(activityId: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("You must be signed in to delete an activity.");
+
+  const { error } = await supabase
+    .from("project_activities")
+    .delete()
+    .eq("id", activityId);
+
+  if (error) throw error;
+}
+
 export async function addProjectMember(
   workspaceId: string,
   projectId: string,

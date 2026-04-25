@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from "react";
 import SplashScreen from "./components/SplashScreen";
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import { getCurrentAppUser } from "./lib/auth/app-user.ts";
 import {
   getCurrentSession,
@@ -13,9 +15,17 @@ import type { UiUser } from "./features/workspace/types.ts";
 import PersonalWorkspaceShell from "./features/personal/PersonalWorkspaceShell";
 import BusinessWorkspaceShell from "./features/business/BusinessWorkspaceShell";
 
-type AuthPage = "login" | "signup";
+type AuthPage = "login" | "signup" | "forgot" | "resetPassword";
 
 function App() {
+  const isPasswordRecoveryLink = useCallback(() => {
+    const search = window.location.search.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return (
+      search.includes("auth=reset-password") || hash.includes("type=recovery")
+    );
+  }, []);
+
   const [showSplash, setShowSplash] = useState(true);
   const [user, setUser] = useState<UiUser | null>(null);
   const [authPage, setAuthPage] = useState<AuthPage>("login");
@@ -63,6 +73,9 @@ function App() {
 
     const syncUser = async () => {
       try {
+        if (isPasswordRecoveryLink()) {
+          setAuthPage("resetPassword");
+        }
         const session = await getCurrentSession();
         if (!isMounted) return;
 
@@ -84,7 +97,10 @@ function App() {
 
     void syncUser();
 
-    const subscription = onAuthStateChange(() => {
+    const subscription = onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setAuthPage("resetPassword");
+      }
       void syncUser();
     });
 
@@ -108,10 +124,19 @@ function App() {
       );
     }
 
+    if (authPage === "forgot") {
+      return <ForgotPasswordPage onGoToLogin={() => setAuthPage("login")} />;
+    }
+
+    if (authPage === "resetPassword") {
+      return <ResetPasswordPage onGoToLogin={() => setAuthPage("login")} />;
+    }
+
     return (
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
         onGoToSignup={() => setAuthPage("signup")}
+        onForgotPassword={() => setAuthPage("forgot")}
       />
     );
   }

@@ -157,13 +157,29 @@ DO $$ BEGIN
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
+DO $$ BEGIN
+  create type public.license_tier as enum ('free', 'pro', 'enterprise');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+DO $$ BEGIN
+  create type public.license_status as enum (
+    'trialing',
+    'active',
+    'past_due',
+    'suspended',
+    'cancelled'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text unique,
   full_name text,
   professional_title text,
-  pls_license text,
+  promo_code text,
   phone text,
   bio text,
   avatar_path text,
@@ -200,6 +216,20 @@ create table public.workspace_settings (
   timezone text not null default 'Africa/Harare',
   country_code text not null default 'ZW',
   settings jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.workspace_licenses (
+  workspace_id uuid primary key references public.workspaces (id) on delete cascade,
+  tier public.license_tier not null default 'free',
+  status public.license_status not null default 'active',
+  starts_at timestamptz not null default now(),
+  ends_at timestamptz,
+  trial_ends_at timestamptz,
+  is_manual boolean not null default true,
+  notes text,
+  updated_by uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -556,6 +586,18 @@ create table audit.activity_log (
   created_at timestamptz not null default now()
 );
 
+create table public.license_events (
+  id bigint generated always as identity primary key,
+  workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  changed_by uuid references auth.users (id) on delete set null,
+  previous_tier public.license_tier,
+  new_tier public.license_tier,
+  previous_status public.license_status,
+  new_status public.license_status,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
 create index idx_workspace_members_user_id on public.workspace_members (user_id);
 create index idx_workspace_members_workspace_id on public.workspace_members (workspace_id);
 create index idx_workspace_invitations_workspace_id on public.workspace_invitations (workspace_id);
@@ -577,6 +619,13 @@ create index idx_payments_invoice_id on public.payments (invoice_id);
 create index idx_notifications_user_status on public.notifications (user_id, status);
 create index idx_attachments_entity on public.attachments (workspace_id, entity_table, entity_id);
 create index idx_audit_activity_workspace_created_at on audit.activity_log (workspace_id, created_at desc);
+create index idx_workspace_licenses_tier_status on public.workspace_licenses (tier, status);
+create index idx_license_events_workspace_created_at on public.license_events (workspace_id, created_at desc);
+
+insert into public.workspace_licenses (workspace_id)
+select w.id
+from public.workspaces w
+on conflict (workspace_id) do nothing;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -585,6 +634,63 @@ as $$
 begin
   new.updated_at = now();
   return new;
+end;
+$$;
+
+create or replace function public.log_workspace_license_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'UPDATE' then
+    if old.tier is distinct from new.tier or old.status is distinct from new.status or old.notes is distinct from new.notes then
+      insert into public.license_events (
+        workspace_id,
+        changed_by,
+        previous_tier,
+        new_tier,
+        previous_status,
+        new_status,
+        notes
+      )
+      values (
+        new.workspace_id,
+        auth.uid(),
+        old.tier,
+        new.tier,
+        old.status,
+        new.status,
+        new.notes
+      );
+    end if;
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    insert into public.license_events (
+      workspace_id,
+      changed_by,
+      previous_tier,
+      new_tier,
+      previous_status,
+      new_status,
+      notes
+    )
+    values (
+      new.workspace_id,
+      auth.uid(),
+      null,
+      new.tier,
+      null,
+      new.status,
+      new.notes
+    );
+    return new;
+  end if;
+
+  return coalesce(new, old);
 end;
 $$;
 
@@ -664,6 +770,66 @@ as $$
     target_workspace_id,
     array['owner'::public.workspace_member_role, 'admin'::public.workspace_member_role]
   );
+$$;
+
+create or replace function public.get_workspace_license_tier(target_workspace_id uuid)
+returns public.license_tier
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (
+      select wl.tier
+      from public.workspace_licenses wl
+      where wl.workspace_id = target_workspace_id
+      limit 1
+    ),
+    'free'::public.license_tier
+  );
+$$;
+
+create or replace function public.is_workspace_license_active(target_workspace_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.workspace_licenses wl
+    where wl.workspace_id = target_workspace_id
+      and wl.status in ('trialing', 'active')
+      and (wl.ends_at is null or wl.ends_at > now())
+  );
+$$;
+
+create or replace function public.workspace_has_tier(
+  target_workspace_id uuid,
+  minimum_tier public.license_tier
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with ranked as (
+    select
+      case public.get_workspace_license_tier(target_workspace_id)
+        when 'free' then 1
+        when 'pro' then 2
+        when 'enterprise' then 3
+      end as actual_rank,
+      case minimum_tier
+        when 'free' then 1
+        when 'pro' then 2
+        when 'enterprise' then 3
+      end as required_rank
+  )
+  select actual_rank >= required_rank from ranked;
 $$;
 
 create or replace function public.can_manage_operations(target_workspace_id uuid)
@@ -826,6 +992,10 @@ begin
   insert into public.workspace_settings (workspace_id)
   values (created_workspace_id);
 
+  insert into public.workspace_licenses (workspace_id)
+  values (created_workspace_id)
+  on conflict (workspace_id) do nothing;
+
   insert into public.workspace_members (
     workspace_id,
     user_id,
@@ -845,20 +1015,20 @@ begin
     id,
     email,
     full_name,
-    pls_license,
+    promo_code,
     default_workspace_id
   )
   values (
     new.id,
     new.email,
     full_name_value,
-    nullif(new.raw_user_meta_data ->> 'pls_license', ''),
+    nullif(new.raw_user_meta_data ->> 'promo_code', ''),
     created_workspace_id
   )
   on conflict (id) do update
     set email = excluded.email,
         full_name = coalesce(excluded.full_name, public.profiles.full_name),
-        pls_license = coalesce(excluded.pls_license, public.profiles.pls_license),
+        promo_code = coalesce(excluded.promo_code, public.profiles.promo_code),
         default_workspace_id = coalesce(public.profiles.default_workspace_id, excluded.default_workspace_id),
         updated_at = now();
 
@@ -908,6 +1078,10 @@ begin
 
   insert into public.workspace_settings (workspace_id)
   values (v_workspace_id);
+
+  insert into public.workspace_licenses (workspace_id)
+  values (v_workspace_id)
+  on conflict (workspace_id) do nothing;
 
   insert into public.workspace_members (
     workspace_id,
@@ -1038,6 +1212,11 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_auth_user();
 
+drop trigger if exists log_workspace_license_event_trigger on public.workspace_licenses;
+create trigger log_workspace_license_event_trigger
+after insert or update on public.workspace_licenses
+for each row execute function public.log_workspace_license_event();
+
 do $$
 declare
   target_table text;
@@ -1046,6 +1225,7 @@ begin
     'profiles',
     'workspaces',
     'workspace_settings',
+    'workspace_licenses',
     'workspace_members',
     'organizations',
     'contacts',
@@ -1075,6 +1255,8 @@ $$;
 alter table public.profiles enable row level security;
 alter table public.workspaces enable row level security;
 alter table public.workspace_settings enable row level security;
+alter table public.workspace_licenses enable row level security;
+alter table public.license_events enable row level security;
 alter table public.workspace_members enable row level security;
 alter table public.workspace_invitations enable row level security;
 alter table public.organizations enable row level security;
@@ -1131,6 +1313,31 @@ for update
 to authenticated
 using (public.can_manage_workspace(workspace_id))
 with check (public.can_manage_workspace(workspace_id));
+
+create policy "workspace_licenses_select_member"
+on public.workspace_licenses
+for select
+to authenticated
+using (public.is_workspace_member(workspace_id));
+
+create policy "workspace_licenses_update_manager"
+on public.workspace_licenses
+for update
+to authenticated
+using (public.can_manage_workspace(workspace_id))
+with check (public.can_manage_workspace(workspace_id));
+
+create policy "workspace_licenses_insert_manager"
+on public.workspace_licenses
+for insert
+to authenticated
+with check (public.can_manage_workspace(workspace_id));
+
+create policy "license_events_select_member"
+on public.license_events
+for select
+to authenticated
+using (public.is_workspace_member(workspace_id));
 
 create policy "workspace_members_select_member"
 on public.workspace_members
@@ -1676,12 +1883,7 @@ using (
   and public.can_manage_documents(public.path_first_segment_uuid(name))
 );
 
-commit;
-
-
--- --- merged boundary ---
-
-begin;
+ 
 
 with users_missing_profile as (
   select
@@ -1692,7 +1894,7 @@ with users_missing_profile as (
       nullif(u.raw_user_meta_data ->> 'name', ''),
       split_part(coalesce(u.email, ''), '@', 1)
     ) as full_name,
-    nullif(u.raw_user_meta_data ->> 'pls_license', '') as pls_license
+    nullif(u.raw_user_meta_data ->> 'promo_code', '') as promo_code
   from auth.users u
   left join public.profiles p
     on p.id = u.id
@@ -1702,13 +1904,13 @@ insert into public.profiles (
   id,
   email,
   full_name,
-  pls_license
+  promo_code
 )
 select
   id,
   email,
   full_name,
-  pls_license
+  promo_code
 from users_missing_profile;
 
 with users_without_workspace_membership as (
@@ -1769,6 +1971,11 @@ select iw.id
 from inserted_workspaces iw
 on conflict (workspace_id) do nothing;
 
+insert into public.workspace_licenses (workspace_id)
+select iw.id
+from inserted_workspaces iw
+on conflict (workspace_id) do nothing;
+
 with users_without_workspace_membership as (
   select
     u.id
@@ -1822,12 +2029,7 @@ from first_workspace_per_user fw
 where p.id = fw.user_id
   and p.default_workspace_id is null;
 
-commit;
-
-
--- --- merged boundary ---
-
-begin;
+ 
 
 create or replace function public.is_business_workspace(target_workspace_id uuid)
 returns boolean
@@ -2126,12 +2328,7 @@ begin
 end;
 $$;
 
-commit;
-
-
--- --- merged boundary ---
-
-begin;
+ 
 
 create table if not exists public.marketplace_listings (
   id uuid default gen_random_uuid() primary key,
@@ -2229,9 +2426,7 @@ for delete
 to authenticated
 using (public.is_workspace_member(workspace_id));
 
-commit;
-
-begin;
+ 
 
 create table if not exists public.project_activities (
   id uuid default gen_random_uuid() primary key,
@@ -2268,6 +2463,148 @@ with check (
     where project_id = project_activities.project_id
     and user_id = auth.uid()
   )
+);
+
+create policy "project_activities_delete_member"
+on public.project_activities
+for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.project_members
+    where project_id = project_activities.project_id
+    and user_id = auth.uid()
+  )
+);
+
+create table if not exists public.time_entries (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  project_id uuid references public.projects (id) on delete set null,
+  entry_date date not null,
+  task text not null,
+  hours numeric(6,2) not null check (hours > 0),
+  billable boolean not null default true,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_time_entries_workspace_user_date
+  on public.time_entries (workspace_id, user_id, entry_date desc);
+
+create table if not exists public.expense_entries (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  project_id uuid references public.projects (id) on delete set null,
+  entry_date date not null,
+  category text not null,
+  amount numeric(12,2) not null check (amount >= 0),
+  vendor text,
+  reimbursable boolean not null default false,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_expense_entries_workspace_user_date
+  on public.expense_entries (workspace_id, user_id, entry_date desc);
+
+drop trigger if exists set_updated_at_time_entries on public.time_entries;
+create trigger set_updated_at_time_entries
+before update on public.time_entries
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_updated_at_expense_entries on public.expense_entries;
+create trigger set_updated_at_expense_entries
+before update on public.expense_entries
+for each row execute function public.set_updated_at();
+
+alter table public.time_entries enable row level security;
+alter table public.expense_entries enable row level security;
+
+drop policy if exists "time_entries_select_member" on public.time_entries;
+create policy "time_entries_select_member"
+on public.time_entries
+for select
+to authenticated
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "time_entries_insert_own" on public.time_entries;
+create policy "time_entries_insert_own"
+on public.time_entries
+for insert
+to authenticated
+with check (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
+);
+
+drop policy if exists "time_entries_update_own" on public.time_entries;
+create policy "time_entries_update_own"
+on public.time_entries
+for update
+to authenticated
+using (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
+)
+with check (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
+);
+
+drop policy if exists "time_entries_delete_own" on public.time_entries;
+create policy "time_entries_delete_own"
+on public.time_entries
+for delete
+to authenticated
+using (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
+);
+
+drop policy if exists "expense_entries_select_member" on public.expense_entries;
+create policy "expense_entries_select_member"
+on public.expense_entries
+for select
+to authenticated
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "expense_entries_insert_own" on public.expense_entries;
+create policy "expense_entries_insert_own"
+on public.expense_entries
+for insert
+to authenticated
+with check (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
+);
+
+drop policy if exists "expense_entries_update_own" on public.expense_entries;
+create policy "expense_entries_update_own"
+on public.expense_entries
+for update
+to authenticated
+using (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
+)
+with check (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
+);
+
+drop policy if exists "expense_entries_delete_own" on public.expense_entries;
+create policy "expense_entries_delete_own"
+on public.expense_entries
+for delete
+to authenticated
+using (
+  public.is_workspace_member(workspace_id)
+  and user_id = auth.uid()
 );
 
 commit;

@@ -12,6 +12,7 @@ import ProfileSettingsPage from "../../pages/shared/ProfileSettingsPage";
 import ProjectHubPage from "../../pages/shared/ProjectHubPage";
 import QuotesPage from "../../pages/shared/QuotesPage";
 import ProfessionalsPage from "../../pages/business/ProfessionalsPage";
+import TimeTrackingPage from "../../pages/shared/TimeTrackingPage";
 
 interface PersonalViewRendererOptions {
   user: UiUser;
@@ -37,10 +38,15 @@ export function renderPersonalView(
         <ProjectHubPage
           userName={user.name}
           workspaceId={user.workspaceId}
+          licenseTier={user.licenseTier}
+          licenseStatus={user.licenseStatus}
           onEnterFullscreenProject={onEnterFullscreenProject}
           onExitFullscreenProject={onExitFullscreenProject}
         />
       );
+
+    case "timeTracking":
+      return <TimeTrackingPage workspaceId={user.workspaceId} />;
 
     case "files":
       return <FileManagerPage workspaceId={user.workspaceId} />;

@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
-import { listPayments } from "../../lib/repositories/payments.ts";
+import { listInvoices } from "../../lib/repositories/invoices.ts";
+import type { InvoiceWithDetails } from "../../lib/repositories/invoices.ts";
+import { createPayment, listPayments } from "../../lib/repositories/payments.ts";
 import type { PaymentWithInvoice } from "../../lib/repositories/payments.ts";
+import { hasMinimumRole } from "../../lib/permissions.ts";
+import {
+  getMyWorkspaceMembership,
+  type WorkspaceMemberRow,
+} from "../../lib/repositories/workspaces.ts";
+import {
+  getWorkspaceLicense,
+  listLicenseEvents,
+  updateWorkspaceLicense,
+  type LicenseEvent,
+  type LicenseStatus,
+  type LicenseTier,
+  type WorkspaceLicense,
+} from "../../lib/repositories/workspaceLicenses.ts";
 import SelectDropdown from "../../components/SelectDropdown.tsx";
 import "../../styles/pages.css";
 
@@ -54,7 +70,31 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
   const [history, setHistory] = useState<PaymentWithInvoice[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [membership, setMembership] = useState<WorkspaceMemberRow | null>(null);
+  const [license, setLicense] = useState<WorkspaceLicense | null>(null);
+  const [licenseEvents, setLicenseEvents] = useState<LicenseEvent[]>([]);
+  const [licenseLoading, setLicenseLoading] = useState(true);
+  const [licenseError, setLicenseError] = useState<string | null>(null);
+  const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
+  const [licenseTierDraft, setLicenseTierDraft] = useState<LicenseTier>("free");
+  const [licenseStatusDraft, setLicenseStatusDraft] =
+    useState<LicenseStatus>("active");
+  const [licenseNotesDraft, setLicenseNotesDraft] = useState("");
+  const [savingLicense, setSavingLicense] = useState(false);
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
+  const [recordPaymentError, setRecordPaymentError] = useState<string | null>(null);
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState("");
+  const [paymentDate, setPaymentDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
   const [newType, setNewType] = useState<"Card" | "Mobile Money">("Card");
   const [newLabel, setNewLabel] = useState("");
   const [newDetail, setNewDetail] = useState("");
@@ -87,6 +127,48 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  const fetchInvoices = useCallback(async () => {
+    try {
+      const data = await listInvoices(workspaceId);
+      setInvoices(data);
+    } catch {
+      setInvoices([]);
+    } finally {
+      setInvoicesLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  const fetchLicense = useCallback(async () => {
+    try {
+      setLicenseError(null);
+      const [membershipData, licenseData, eventsData] = await Promise.all([
+        getMyWorkspaceMembership(workspaceId),
+        getWorkspaceLicense(workspaceId),
+        listLicenseEvents(workspaceId),
+      ]);
+      setMembership(membershipData);
+      setLicense(licenseData);
+      setLicenseEvents(eventsData);
+      if (licenseData) {
+        setLicenseTierDraft(licenseData.tier);
+        setLicenseStatusDraft(licenseData.status);
+        setLicenseNotesDraft(licenseData.notes ?? "");
+      }
+    } catch (err: any) {
+      setLicenseError(err.message ?? "Failed to load license details.");
+    } finally {
+      setLicenseLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    fetchLicense();
+  }, [fetchLicense]);
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -150,6 +232,135 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
     showNotice("Payment method added.");
   };
 
+  const escapeCsv = (value: string | number | null | undefined) => {
+    const str = String(value ?? "");
+    if (/[",\n]/.test(str)) return `"${str.replaceAll('"', '""')}"`;
+    return str;
+  };
+
+  const downloadStatementCsv = () => {
+    const rows = query ? filteredHistory : history;
+    if (rows.length === 0) {
+      showNotice("No payment records available to export.");
+      return;
+    }
+    const header = [
+      "paid_on",
+      "invoice_number",
+      "payment_method",
+      "reference",
+      "amount",
+      "notes",
+    ];
+    const csvRows = rows.map((entry) =>
+      [
+        entry.paid_on,
+        entry.invoice_number,
+        entry.payment_method,
+        entry.reference,
+        entry.amount.toFixed(2),
+        entry.notes ?? "",
+      ]
+        .map(escapeCsv)
+        .join(","),
+    );
+    const csv = [header.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `billing-statement-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotice("Statement CSV downloaded.");
+  };
+
+  const resetRecordPaymentForm = () => {
+    setPaymentInvoiceId("");
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentAmount("");
+    setPaymentMethod("");
+    setPaymentReference("");
+    setPaymentNotes("");
+    setRecordPaymentError(null);
+  };
+
+  const submitRecordPayment = async () => {
+    if (!paymentInvoiceId) {
+      setRecordPaymentError("Please select an invoice.");
+      return;
+    }
+    const parsedAmount = Number(paymentAmount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setRecordPaymentError("Please enter a valid amount greater than zero.");
+      return;
+    }
+    if (!paymentDate) {
+      setRecordPaymentError("Please select a payment date.");
+      return;
+    }
+
+    try {
+      setRecordingPayment(true);
+      setRecordPaymentError(null);
+      await createPayment(workspaceId, {
+        invoice_id: paymentInvoiceId,
+        paid_on: paymentDate,
+        amount: parsedAmount,
+        payment_method: paymentMethod.trim() || null,
+        reference: paymentReference.trim() || null,
+        notes: paymentNotes.trim() || null,
+      });
+      await fetchHistory();
+      setIsRecordPaymentOpen(false);
+      resetRecordPaymentForm();
+      showNotice("Payment recorded.");
+    } catch (err: any) {
+      setRecordPaymentError(err.message ?? "Failed to record payment.");
+    } finally {
+      setRecordingPayment(false);
+    }
+  };
+
+  const canManageLicense = hasMinimumRole(membership?.role, "admin");
+
+  const licenseTierLabel = (license?.tier ?? "free").toUpperCase();
+  const licenseStatusLabel = (license?.status ?? "active").replaceAll("_", " ");
+  const statusBadgeClass =
+    license?.status === "active" || license?.status === "trialing"
+      ? "badge-green"
+      : license?.status === "past_due"
+        ? "badge-yellow"
+        : "badge-gray";
+  const tierBadgeClass =
+    license?.tier === "enterprise"
+      ? "badge-purple"
+      : license?.tier === "pro"
+        ? "badge-blue"
+        : "badge-gray";
+
+  const saveLicense = async () => {
+    if (!license) return;
+    try {
+      setSavingLicense(true);
+      await updateWorkspaceLicense(workspaceId, {
+        tier: licenseTierDraft,
+        status: licenseStatusDraft,
+        notes: licenseNotesDraft.trim() || null,
+      });
+      await fetchLicense();
+      setIsLicenseModalOpen(false);
+      showNotice("Workspace license updated.");
+    } catch (err: any) {
+      setLicenseError(err.message ?? "Failed to update license.");
+    } finally {
+      setSavingLicense(false);
+    }
+  };
+
   const query = historySearch.trim().toLowerCase();
   const filteredHistory = history
     .filter(
@@ -182,11 +393,33 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
           </p>
         </div>
         <div className="header-actions">
+          <div className="billing-license-widget" aria-label="Workspace license">
+            <span className="billing-license-label">License Plan</span>
+            <span className={`badge ${tierBadgeClass}`}>{licenseTierLabel}</span>
+            <span className="billing-license-label">Status</span>
+            <span className={`badge ${statusBadgeClass}`}>{licenseStatusLabel}</span>
+            {canManageLicense && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setIsLicenseModalOpen(true)}
+              >
+                Manage License
+              </button>
+            )}
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              resetRecordPaymentForm();
+              setIsRecordPaymentOpen(true);
+            }}
+            disabled={invoicesLoading || invoices.length === 0}
+          >
+            Record Payment
+          </button>
           <button
             className="btn btn-outline billing-statements-btn"
-            onClick={() =>
-              showNotice("Statement download started for this month.")
-            }
+            onClick={downloadStatementCsv}
           >
             <svg
               width="16"
@@ -226,6 +459,35 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
           </p>
         </div>
       </div>
+      {licenseError && <div className="alert-bar alert-warning">{licenseError}</div>}
+
+      {licenseEvents.length > 0 && (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <div className="card-header">
+            <h3 className="billing-section-title">Recent License Events</h3>
+          </div>
+          <table className="invoice-table billing-history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {licenseEvents.map((event) => (
+                <tr key={event.id}>
+                  <td>{formatDate(event.created_at)}</td>
+                  <td>{event.previous_tier ?? "—"} → {event.new_tier ?? "—"}</td>
+                  <td>{event.previous_status ?? "—"} → {event.new_status ?? "—"}</td>
+                  <td>{event.notes ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="card billing-card">
         <div className="card-header billing-tabs">
@@ -467,6 +729,150 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
               </button>
               <button className="btn btn-primary" onClick={addMethod}>
                 Add Method
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isRecordPaymentOpen && (
+        <div className="billing-modal-overlay" role="dialog" aria-modal="true">
+          <div className="billing-modal">
+            <div className="billing-modal-header">
+              <h3>Record Payment</h3>
+              <button
+                className="billing-modal-close"
+                onClick={() => setIsRecordPaymentOpen(false)}
+                disabled={recordingPayment}
+              >
+                Close
+              </button>
+            </div>
+            <div className="billing-modal-grid">
+              <SelectDropdown
+                className="input-field billing-history-select"
+                value={paymentInvoiceId}
+                onChange={(val) => setPaymentInvoiceId(val)}
+                options={[
+                  { value: "", label: "Select invoice" },
+                  ...invoices.map((inv) => ({
+                    value: inv.id,
+                    label: `${inv.invoice_number} - ${formatCurrency(inv.total)}`,
+                  })),
+                ]}
+              />
+              <input
+                type="date"
+                className="input-field"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="input-field"
+                placeholder="Amount"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+              />
+              <input
+                className="input-field"
+                placeholder="Payment method (optional)"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              />
+              <input
+                className="input-field"
+                placeholder="Reference (optional)"
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+              />
+              <input
+                className="input-field"
+                placeholder="Notes (optional)"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+              />
+            </div>
+            {recordPaymentError && (
+              <div className="mkt-post-error">{recordPaymentError}</div>
+            )}
+            <div className="billing-modal-actions">
+              <button
+                className="btn btn-outline"
+                onClick={() => setIsRecordPaymentOpen(false)}
+                disabled={recordingPayment}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={submitRecordPayment}
+                disabled={recordingPayment}
+              >
+                {recordingPayment ? "Saving..." : "Save Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isLicenseModalOpen && (
+        <div className="billing-modal-overlay" role="dialog" aria-modal="true">
+          <div className="billing-modal">
+            <div className="billing-modal-header">
+              <h3>Update Workspace License</h3>
+              <button
+                className="billing-modal-close"
+                onClick={() => setIsLicenseModalOpen(false)}
+                disabled={savingLicense}
+              >
+                Close
+              </button>
+            </div>
+            <div className="billing-modal-grid">
+              <SelectDropdown
+                className="input-field billing-history-select"
+                value={licenseTierDraft}
+                onChange={(val) => setLicenseTierDraft(val as LicenseTier)}
+                options={[
+                  { value: "free", label: "Free" },
+                  { value: "pro", label: "Pro" },
+                  { value: "enterprise", label: "Enterprise" },
+                ]}
+              />
+              <SelectDropdown
+                className="input-field billing-history-select"
+                value={licenseStatusDraft}
+                onChange={(val) => setLicenseStatusDraft(val as LicenseStatus)}
+                options={[
+                  { value: "trialing", label: "Trialing" },
+                  { value: "active", label: "Active" },
+                  { value: "past_due", label: "Past Due" },
+                  { value: "suspended", label: "Suspended" },
+                  { value: "cancelled", label: "Cancelled" },
+                ]}
+              />
+              <input
+                className="input-field"
+                placeholder="Change notes (optional)"
+                value={licenseNotesDraft}
+                onChange={(e) => setLicenseNotesDraft(e.target.value)}
+              />
+            </div>
+            <div className="billing-modal-actions">
+              <button
+                className="btn btn-outline"
+                onClick={() => setIsLicenseModalOpen(false)}
+                disabled={savingLicense}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={saveLicense}
+                disabled={savingLicense}
+              >
+                {savingLicense ? "Saving..." : "Save License"}
               </button>
             </div>
           </div>

@@ -17,7 +17,7 @@
 }
 
 .page-header h1 {
-  font-size: 28px;
+  font-size: 23px;
   margin: 0;
   letter-spacing: -0.5px;
 }
@@ -2494,6 +2494,38 @@
   align-items: center;
 }
 
+.billing-license-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  flex-wrap: wrap;
+}
+
+.billing-license-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.billing-license-widget .badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.billing-license-widget .btn.btn-sm {
+  border-radius: 999px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
 .billing-summary-row {
   margin-bottom: 10px;
 }
@@ -4669,4 +4701,221 @@
   .file-manager-table td {
     padding: 7px 8px;
   }
+}
+
+@media (max-width: 620px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-actions .btn {
+    width: 100%;
+  }
+}
+
+[data-theme="dark"] .filter-chip,
+[data-theme="dark"] .search-input,
+[data-theme="dark"] .coord-banner,
+[data-theme="dark"] .mini-stat,
+[data-theme="dark"] .setting-input,
+[data-theme="dark"] .btn-outline,
+[data-theme="dark"] .billing-license-widget,
+[data-theme="dark"] .billing-method-card,
+[data-theme="dark"] .billing-history-select,
+[data-theme="dark"] .billing-modal,
+[data-theme="dark"] .mkt-post-select,
+[data-theme="dark"] .schedule-modal,
+[data-theme="dark"] .file-manager-select,
+[data-theme="dark"] .file-manager-type-pill,
+[data-theme="dark"] .file-manager-action-btn,
+[data-theme="dark"] .file-manager-row-menu,
+[data-theme="dark"] .dispatch-calendar,
+[data-theme="dark"] .dispatch-sidebar,
+[data-theme="dark"] .dispatch-modal,
+[data-theme="dark"] .split-list,
+[data-theme="dark"] .split-detail,
+[data-theme="dark"] .quote-totals-card,
+[data-theme="dark"] .invoices-detail-panel,
+[data-theme="dark"] .invoices-create-modal {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .team-row:hover,
+[data-theme="dark"] .pro-row:hover,
+[data-theme="dark"] .mkt-row:hover,
+[data-theme="dark"] .billing-method-card.is-default,
+[data-theme="dark"] .quotes-split-list .split-list-item.active,
+[data-theme="dark"] .invoices-list-item.active {
+  background: var(--table-row-hover-bg);
+}
+
+[data-theme="dark"] .dispatch-week-header,
+[data-theme="dark"] .dispatch-day-label.today,
+[data-theme="dark"] .dispatch-day-col.today,
+[data-theme="dark"] .dispatch-day-label.selected,
+[data-theme="dark"] .dispatch-day-col.selected,
+[data-theme="dark"] .dispatch-pill,
+[data-theme="dark"] .dispatch-modal-pick,
+[data-theme="dark"] .dispatch-modal-close,
+[data-theme="dark"] .dispatch-day-label,
+[data-theme="dark"] .dispatch-card,
+[data-theme="dark"] .dispatch-empty {
+  background: var(--surface);
+  color: var(--text-h);
+}
+
+[data-theme="dark"] .dispatch-day-col.drag-over,
+[data-theme="dark"] .dispatch-pill.active {
+  background: var(--accent-bg);
+}
+
+[data-theme="dark"] .dispatch-card-client,
+[data-theme="dark"] .dispatch-card-resources,
+[data-theme="dark"] .dispatch-day-label {
+  color: var(--text);
+}
+
+[data-theme="dark"] .file-manager-dropzone,
+[data-theme="dark"] .file-manager-storage-card,
+[data-theme="dark"] .file-manager-kpi-card,
+[data-theme="dark"] .file-manager-project-card,
+[data-theme="dark"] .file-manager-table-card,
+[data-theme="dark"] .file-manager-selection-bar {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .file-manager-dropzone.drag-over {
+  background: var(--accent-bg);
+}
+
+/* ── Motion Layer ── */
+.page,
+.billing-page,
+.team-page,
+.invoices-page,
+.file-manager-page {
+  animation: ui-fade-in-up var(--motion-base) var(--ease-standard);
+}
+
+.filter-chip,
+.invoice-filter-btn,
+.billing-tab-btn,
+.schedule-type-pill,
+.file-manager-type-pill {
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+.filter-chip:hover,
+.invoice-filter-btn:hover,
+.schedule-type-pill:hover,
+.file-manager-type-pill:hover {
+  transform: var(--lift-sm);
+}
+
+.btn,
+.auth-btn,
+.billing-add-method-btn,
+.schedule-add-mini,
+.file-manager-clear-filter,
+.file-manager-action-btn {
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.btn:hover,
+.auth-btn:hover,
+.billing-add-method-btn:hover,
+.schedule-add-mini:hover,
+.file-manager-clear-filter:hover,
+.file-manager-action-btn:hover {
+  transform: var(--lift-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:active,
+.auth-btn:active,
+.billing-add-method-btn:active,
+.schedule-add-mini:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.invoice-summary-card,
+.mini-stat,
+.billing-method-card,
+.mkt-card,
+.pro-card,
+.ast-cal-card,
+.ast-deploy-card,
+.ast-maint-card,
+.file-manager-project-card {
+  transition:
+    transform var(--motion-base) var(--ease-emphasized),
+    box-shadow var(--motion-base) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+.invoice-summary-card:hover,
+.mini-stat:hover,
+.billing-method-card:hover,
+.file-manager-project-card:hover {
+  transform: var(--lift-md);
+  box-shadow: var(--shadow-hover);
+}
+
+.mkt-modal-overlay,
+.dispatch-modal-overlay,
+.billing-modal-overlay,
+.schedule-modal-overlay,
+.invoices-create-overlay {
+  animation: ui-fade-in-up var(--motion-fast) var(--ease-standard);
+}
+
+.mkt-modal,
+.dispatch-modal,
+.billing-modal,
+.schedule-modal,
+.invoices-create-modal {
+  animation: ui-fade-in-scale var(--motion-base) var(--ease-emphasized);
+}
+
+.file-manager-row-menu,
+.select-dropdown-menu {
+  animation: ui-fade-in-scale var(--motion-fast) var(--ease-standard);
+  transform-origin: top right;
+}
+
+.list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.list-pagination-label {
+  font-size: 12px;
+  color: var(--text);
+  min-width: 92px;
+  text-align: center;
 }

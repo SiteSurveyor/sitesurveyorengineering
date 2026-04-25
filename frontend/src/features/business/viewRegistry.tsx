@@ -13,6 +13,7 @@ import MarketplacePage from "../../pages/shared/MarketplacePage";
 import ProfileSettingsPage from "../../pages/shared/ProfileSettingsPage";
 import ProjectHubPage from "../../pages/shared/ProjectHubPage";
 import QuotesPage from "../../pages/shared/QuotesPage";
+import TimeTrackingPage from "../../pages/shared/TimeTrackingPage";
 import type { UiUser, WorkspaceView } from "../workspace/types";
 
 interface BusinessViewRegistryOptions {
@@ -42,10 +43,15 @@ export function renderBusinessView(
         <ProjectHubPage
           userName={user.name}
           workspaceId={user.workspaceId}
+          licenseTier={user.licenseTier}
+          licenseStatus={user.licenseStatus}
           onEnterFullscreenProject={onEnterFullscreenProject}
           onExitFullscreenProject={onExitFullscreenProject}
         />
       );
+
+    case "timeTracking":
+      return <TimeTrackingPage workspaceId={user.workspaceId} />;
 
     case "dispatch":
       return <DispatchPage workspaceId={user.workspaceId} />;

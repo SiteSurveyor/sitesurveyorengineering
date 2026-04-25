@@ -3,9 +3,11 @@ import {
   getMyProfile,
   updateMyProfile,
 } from "../../lib/repositories/profiles.ts";
+import { useThemeMode } from "../../lib/theme.ts";
 import "../../styles/pages.css";
 
 export default function ProfileSettingsPage() {
+  const { isDarkMode, setThemeMode } = useThemeMode();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +15,7 @@ export default function ProfileSettingsPage() {
 
   const [fullName, setFullName] = useState("");
   const [professionalTitle, setProfessionalTitle] = useState("");
-  const [plsLicense, setPlsLicense] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -24,7 +26,7 @@ export default function ProfileSettingsPage() {
         if (profile) {
           setFullName(profile.full_name ?? "");
           setProfessionalTitle(profile.professional_title ?? "");
-          setPlsLicense(profile.pls_license ?? "");
+          setPromoCode(profile.promo_code ?? "");
           setBio(profile.bio ?? "");
           setEmail(profile.email ?? "");
           setPhone(profile.phone ?? "");
@@ -41,7 +43,7 @@ export default function ProfileSettingsPage() {
       await updateMyProfile({
         full_name: fullName.trim() || null,
         professional_title: professionalTitle.trim() || null,
-        pls_license: plsLicense.trim() || null,
+        promo_code: promoCode.trim() || null,
         bio: bio.trim() || null,
         email: email.trim() || null,
         phone: phone.trim() || null,
@@ -174,15 +176,15 @@ export default function ProfileSettingsPage() {
 
             <div className="setting-row">
               <div className="setting-info">
-                <span className="setting-label">Surveyor License / ID</span>
+                <span className="setting-label">Promo / Referral Code</span>
                 <span className="setting-desc">
-                  Your personal practicing license number
+                  Optional code for promotions and referral tracking
                 </span>
               </div>
               <input
                 className="setting-input"
-                value={plsLicense}
-                onChange={(e) => setPlsLicense(e.target.value)}
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
               />
             </div>
 
@@ -236,6 +238,25 @@ export default function ProfileSettingsPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-info">
+                <span className="setting-label">Dark Mode</span>
+                <span className="setting-desc">
+                  Use a darker interface optimized for low-light work
+                </span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={isDarkMode}
+                  onChange={(e) =>
+                    setThemeMode(e.target.checked ? "dark" : "light")
+                  }
+                />
+                <span className="toggle-slider" />
+              </label>
             </div>
 
             <div className="setting-row">

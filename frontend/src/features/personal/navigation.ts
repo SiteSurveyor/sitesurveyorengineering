@@ -8,6 +8,7 @@ export const personalNavGroups: WorkspaceNavGroup[] = [
     label: "WORK",
     items: [
       { view: "schedule", label: "Schedule", icon: "calendar" },
+      { view: "timeTracking", label: "Time & Expenses", icon: "clock" },
       { view: "projects", label: "Projects", icon: "folder" },
       { view: "files", label: "File Manager", icon: "file-manager" },
       { view: "quotes", label: "Quotes", icon: "document" },

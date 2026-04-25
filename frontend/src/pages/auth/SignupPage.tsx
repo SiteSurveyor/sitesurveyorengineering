@@ -32,7 +32,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
-  const [plsLicense, setPlsLicense] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -78,7 +78,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
         workspaceName:
           accountType === "business" ? normalizedCompany : undefined,
         company: normalizedCompany,
-        plsLicense: plsLicense || undefined,
+        promoCode: promoCode || undefined,
       });
 
       if (result.needsEmailConfirmation) {
@@ -104,7 +104,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
         <div className="auth-card auth-card-wide">
           <div className="auth-header">
             <img src="/logo.svg" alt="SiteSurveyor" className="auth-logo" />
-            <h1 className="auth-brand">SiteSurveyor</h1>
+            <h1 className="auth-brand">SiteSurveyor for Engineers</h1>
             <p className="auth-tagline">Choose how you'll use SiteSurveyor</p>
           </div>
 
@@ -202,7 +202,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
       <div className="auth-card auth-card-wide">
         <div className="auth-header">
           <img src="/logo.svg" alt="SiteSurveyor" className="auth-logo" />
-          <h1 className="auth-brand">SiteSurveyor</h1>
+          <h1 className="auth-brand">SiteSurveyor for Engineers</h1>
           <p className="auth-tagline">
             {accountType === "personal"
               ? "Set up your personal workspace"
@@ -283,15 +283,15 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
             )}
             <div className="form-group">
               <label className="form-label">
-                PLS License{" "}
+                Promo / Referral Code{" "}
                 <span className="form-label-optional">(optional)</span>
               </label>
               <input
                 className="form-input"
                 type="text"
-                placeholder="SLC-0000-ZW"
-                value={plsLicense}
-                onChange={(e) => setPlsLicense(e.target.value)}
+                placeholder="PROMO-2026-WELCOME"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
               />
             </div>
           </div>

@@ -1,69 +1,166 @@
-import { useState } from 'react'
-import '../../styles/pages.css'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import "../../styles/pages.css";
+import {
+  createExpenseEntry,
+  createTimeEntry,
+  listExpenseEntries,
+  listTimeEntries,
+  type ExpenseEntryRow,
+  type TimeEntryRow,
+} from "../../lib/repositories/timeTracking.ts";
+import { listProjects, type ProjectWithOrg } from "../../lib/repositories/projects.ts";
 
-interface TimeEntry {
-  id: string
-  date: string
-  project: string
-  task: string
-  hours: number
-  billable: boolean
-  notes: string
+interface TimeTrackingPageProps {
+  workspaceId: string;
 }
 
-interface ExpenseEntry {
-  id: string
-  date: string
-  category: 'Fuel' | 'Accomodation' | 'Permits/Fees' | 'Meals' | 'Materials' | 'Other'
-  project: string
-  amount: number
-  vendor: string
-  reimbursable: boolean
-}
+const expenseCategories = [
+  "Fuel",
+  "Accommodation",
+  "Permits/Fees",
+  "Meals",
+  "Materials",
+  "Other",
+] as const;
+type ExpenseCategory = (typeof expenseCategories)[number];
 
-const DUMMY_TIME: TimeEntry[] = [
-  { id: '1', date: '2026-04-20', project: 'Stand 432 Boundary Verification', task: 'Field Survey', hours: 4.5, billable: true, notes: 'Found 3 of 4 original pegs' },
-  { id: '2', date: '2026-04-20', project: 'Stand 432 Boundary Verification', task: 'Data Processing', hours: 2.0, billable: true, notes: 'Drafted General Plan overlay' },
-  { id: '3', date: '2026-04-21', project: 'Internal', task: 'Equipment Calibration', hours: 1.5, billable: false, notes: 'Calibrated total station and level' },
-  { id: '4', date: '2026-04-22', project: 'Farm 14 Topo', task: 'Field Survey', hours: 8.0, billable: true, notes: 'Completed western boundary and contours' },
-]
+export default function TimeTrackingPage({ workspaceId }: TimeTrackingPageProps) {
+  const [timeEntries, setTimeEntries] = useState<TimeEntryRow[]>([]);
+  const [expenseEntries, setExpenseEntries] = useState<ExpenseEntryRow[]>([]);
+  const [projects, setProjects] = useState<ProjectWithOrg[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"time" | "expenses">("time");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-const DUMMY_EXPENSES: ExpenseEntry[] = [
-  { id: '1', date: '2026-04-20', category: 'Fuel', project: 'Stand 432 Boundary Verification', amount: 45.00, vendor: 'Puma Borrowdale', reimbursable: false },
-  { id: '2', date: '2026-04-22', category: 'Accomodation', project: 'Farm 14 Topo', amount: 120.00, vendor: 'Chinhoyi Guest House', reimbursable: true },
-  { id: '3', date: '2026-04-22', category: 'Permits/Fees', project: 'Farm 14 Topo', amount: 25.00, vendor: 'Rural District Council', reimbursable: true },
-]
+  const [timeForm, setTimeForm] = useState({
+    entry_date: new Date().toISOString().slice(0, 10),
+    project_id: "",
+    task: "",
+    hours: "1",
+    billable: true,
+    notes: "",
+  });
 
-export default function TimeTrackingPage() {
-  const [timeEntries] = useState<TimeEntry[]>(DUMMY_TIME)
-  const [expenseEntries] = useState<ExpenseEntry[]>(DUMMY_EXPENSES)
-  const [currentWeek] = useState('Apr 20 - Apr 26, 2026')
-  const [activeTab, setActiveTab] = useState<'time' | 'expenses'>('time')
+  const [expenseForm, setExpenseForm] = useState<{
+    entry_date: string;
+    project_id: string;
+    category: ExpenseCategory;
+    amount: string;
+    vendor: string;
+    reimbursable: boolean;
+    notes: string;
+  }>({
+    entry_date: new Date().toISOString().slice(0, 10),
+    project_id: "",
+    category: expenseCategories[0],
+    amount: "0",
+    vendor: "",
+    reimbursable: false,
+    notes: "",
+  });
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [time, expenses, projectRows] = await Promise.all([
+        listTimeEntries(workspaceId),
+        listExpenseEntries(workspaceId),
+        listProjects(workspaceId),
+      ]);
+      setTimeEntries(time);
+      setExpenseEntries(expenses);
+      setProjects(projectRows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load time tracking data.");
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   // Calculated Stats
-  const totalHours = timeEntries.reduce((s, e) => s + e.hours, 0)
-  const billableHours = timeEntries.filter(e => e.billable).reduce((s, e) => s + e.hours, 0)
-  
-  const totalExpenses = expenseEntries.reduce((s, e) => s + e.amount, 0)
-  const reimbursableExpenses = expenseEntries.filter(e => e.reimbursable).reduce((s, e) => s + e.amount, 0)
+  const totalHours = useMemo(
+    () => timeEntries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0),
+    [timeEntries],
+  );
+  const billableHours = useMemo(
+    () =>
+      timeEntries
+        .filter((entry) => entry.billable)
+        .reduce((sum, entry) => sum + Number(entry.hours || 0), 0),
+    [timeEntries],
+  );
+  const totalExpenses = useMemo(
+    () => expenseEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+    [expenseEntries],
+  );
+  const reimbursableExpenses = useMemo(
+    () =>
+      expenseEntries
+        .filter((entry) => entry.reimbursable)
+        .reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+    [expenseEntries],
+  );
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (activeTab === "time") {
+        await createTimeEntry(workspaceId, {
+          entry_date: timeForm.entry_date,
+          task: timeForm.task.trim(),
+          hours: Number(timeForm.hours),
+          billable: timeForm.billable,
+          project_id: timeForm.project_id || null,
+          notes: timeForm.notes.trim() || null,
+        });
+      } else {
+        await createExpenseEntry(workspaceId, {
+          entry_date: expenseForm.entry_date,
+          category: expenseForm.category,
+          amount: Number(expenseForm.amount),
+          vendor: expenseForm.vendor.trim() || null,
+          reimbursable: expenseForm.reimbursable,
+          project_id: expenseForm.project_id || null,
+          notes: expenseForm.notes.trim() || null,
+        });
+      }
+      setShowCreateModal(false);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save entry.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="hub-body">
+        <p style={{ padding: "2rem" }}>Loading time and expenses...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="hub-body">
+      {error && (
+        <div style={{ marginBottom: "16px", padding: "12px 16px", background: "#fef2f2", color: "#b91c1c", borderRadius: "8px" }}>
+          {error}
+        </div>
+      )}
       <header className="page-header" style={{ padding: 0, marginBottom: '24px' }}>
         <div>
           <h1>Time & Expenses</h1>
-          <p className="page-subtitle">Log your daily hours and site costs</p>
-        </div>
-        <div className="header-actions">
-          <button className="btn btn-outline">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            Prev
-          </button>
-          <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-h)' }}>{currentWeek}</span>
-          <button className="btn btn-outline">
-            Next
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-          </button>
+          <p className="page-subtitle">Log your hours and site costs against real projects</p>
         </div>
       </header>
 
@@ -74,14 +171,14 @@ export default function TimeTrackingPage() {
             <span className="invoice-summary-label">Total Hours</span>
             <span style={{ color: '#22c55e', fontSize: '12px', fontWeight: 600 }}>{billableHours}h billable</span>
           </div>
-          <span className="invoice-summary-value">{totalHours}h</span>
+          <span className="invoice-summary-value">{totalHours.toFixed(2)}h</span>
         </div>
         <div className="invoice-summary-card" style={{ borderLeftColor: '#f59e0b' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span className="invoice-summary-label">Total Expenses</span>
             <span style={{ color: '#1d4ed8', fontSize: '12px', fontWeight: 600 }}>${reimbursableExpenses.toLocaleString()} reimbursable</span>
           </div>
-          <span className="invoice-summary-value">${totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+          <span className="invoice-summary-value">${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
 
@@ -110,7 +207,7 @@ export default function TimeTrackingPage() {
             </button>
           </div>
           
-          <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '13px' }}>
+          <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => setShowCreateModal(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {activeTab === 'time' ? 'Log Time' : 'Log Expense'}
           </button>
@@ -129,16 +226,16 @@ export default function TimeTrackingPage() {
               </tr>
             </thead>
             <tbody>
-              {timeEntries.map(e => (
+              {timeEntries.map((e) => (
                 <tr key={e.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{e.date}</td>
-                  <td style={{ fontWeight: 500, color: 'var(--text-h)' }}>{e.project}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{e.entry_date}</td>
+                  <td style={{ fontWeight: 500, color: 'var(--text-h)' }}>{e.projects?.name ?? "Internal"}</td>
                   <td>{e.task}</td>
-                  <td style={{ color: 'var(--text)', fontSize: '13px' }}>{e.notes}</td>
+                  <td style={{ color: 'var(--text)', fontSize: '13px' }}>{e.notes ?? "—"}</td>
                   <td style={{ textAlign: 'center' }}>
                     {e.billable ? <span style={{ color: '#22c55e' }}>✓</span> : <span style={{ color: 'var(--border-heavy)' }}>—</span>}
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{e.hours}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(e.hours).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -156,21 +253,21 @@ export default function TimeTrackingPage() {
               </tr>
             </thead>
             <tbody>
-              {expenseEntries.map(e => (
+              {expenseEntries.map((e) => (
                 <tr key={e.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{e.date}</td>
-                  <td style={{ fontWeight: 500, color: 'var(--text-h)' }}>{e.project}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{e.entry_date}</td>
+                  <td style={{ fontWeight: 500, color: 'var(--text-h)' }}>{e.projects?.name ?? "Internal"}</td>
                   <td>
                     <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>
                       {e.category}
                     </span>
                   </td>
-                  <td>{e.vendor}</td>
+                  <td>{e.vendor ?? "—"}</td>
                   <td style={{ textAlign: 'center' }}>
                     {e.reimbursable ? <span style={{ color: '#1d4ed8', fontWeight: 600, fontSize: '12px' }}>Yes</span> : <span style={{ color: 'var(--border-heavy)' }}>—</span>}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-h)' }}>
-                    ${e.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                    ${Number(e.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
               ))}
@@ -178,6 +275,164 @@ export default function TimeTrackingPage() {
           </table>
         )}
       </div>
+
+      {showCreateModal && (
+        <div className="hub-modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="hub-modal" style={{ width: "560px", maxWidth: "94%" }} onClick={(e) => e.stopPropagation()}>
+            <h2 className="hub-modal-title">{activeTab === "time" ? "Log Time" : "Log Expense"}</h2>
+            <form className="hub-modal-form" onSubmit={handleCreate}>
+              <div className="form-group">
+                <label className="form-label">Date</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={activeTab === "time" ? timeForm.entry_date : expenseForm.entry_date}
+                  onChange={(e) =>
+                    activeTab === "time"
+                      ? setTimeForm((prev) => ({ ...prev, entry_date: e.target.value }))
+                      : setExpenseForm((prev) => ({ ...prev, entry_date: e.target.value }))
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Project</label>
+                <select
+                  className="input-field"
+                  value={activeTab === "time" ? timeForm.project_id : expenseForm.project_id}
+                  onChange={(e) =>
+                    activeTab === "time"
+                      ? setTimeForm((prev) => ({ ...prev, project_id: e.target.value }))
+                      : setExpenseForm((prev) => ({ ...prev, project_id: e.target.value }))
+                  }
+                >
+                  <option value="">Internal / Not linked</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {activeTab === "time" ? (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Task</label>
+                    <input
+                      className="input-field"
+                      value={timeForm.task}
+                      onChange={(e) => setTimeForm((prev) => ({ ...prev, task: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "end" }}>
+                    <div className="form-group">
+                      <label className="form-label">Hours</label>
+                      <input
+                        type="number"
+                        min="0.25"
+                        step="0.25"
+                        className="input-field"
+                        value={timeForm.hours}
+                        onChange={(e) => setTimeForm((prev) => ({ ...prev, hours: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", marginBottom: "10px" }}>
+                      <input
+                        type="checkbox"
+                        checked={timeForm.billable}
+                        onChange={(e) => setTimeForm((prev) => ({ ...prev, billable: e.target.checked }))}
+                      />
+                      Billable
+                    </label>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Notes</label>
+                    <textarea
+                      className="input-field"
+                      value={timeForm.notes}
+                      onChange={(e) => setTimeForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div className="form-group">
+                      <label className="form-label">Category</label>
+                      <select
+                        className="input-field"
+                        value={expenseForm.category}
+                        onChange={(e) =>
+                          setExpenseForm((prev) => ({
+                            ...prev,
+                            category: e.target.value as ExpenseCategory,
+                          }))
+                        }
+                      >
+                        {expenseCategories.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Amount</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="input-field"
+                        value={expenseForm.amount}
+                        onChange={(e) => setExpenseForm((prev) => ({ ...prev, amount: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "end" }}>
+                    <div className="form-group">
+                      <label className="form-label">Vendor</label>
+                      <input
+                        className="input-field"
+                        value={expenseForm.vendor}
+                        onChange={(e) => setExpenseForm((prev) => ({ ...prev, vendor: e.target.value }))}
+                      />
+                    </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", marginBottom: "10px" }}>
+                      <input
+                        type="checkbox"
+                        checked={expenseForm.reimbursable}
+                        onChange={(e) => setExpenseForm((prev) => ({ ...prev, reimbursable: e.target.checked }))}
+                      />
+                      Reimbursable
+                    </label>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Notes</label>
+                    <textarea
+                      className="input-field"
+                      value={expenseForm.notes}
+                      onChange={(e) => setExpenseForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
+                <button type="button" className="btn btn-outline" onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

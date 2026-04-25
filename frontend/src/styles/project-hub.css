@@ -4,7 +4,7 @@
 
 .hub-screen {
     height: 100vh;
-    background: #f5f5f7;
+    background: var(--bg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -12,7 +12,7 @@
 
 /* ── Slim Top Bar ── */
 .hub-topbar {
-    background: #fff;
+    background: var(--surface);
     border-bottom: 1px solid var(--border);
     padding: 0 24px;
     height: 56px;
@@ -20,6 +20,7 @@
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
+    animation: ui-fade-in-up var(--motion-fast) var(--ease-standard);
 }
 
 .hub-topbar-left {
@@ -32,6 +33,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    min-width: 0;
 }
 
 .hub-logo {
@@ -56,14 +58,17 @@
 
 .hub-sidebar {
     width: 220px;
-    background: #fff;
+    background: var(--surface);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+        width var(--motion-slow) var(--ease-standard),
+        background var(--motion-fast) var(--ease-standard),
+        border-color var(--motion-fast) var(--ease-standard);
 }
 
 .hub-sidebar.collapsed {
@@ -124,7 +129,7 @@
 }
 
 .hub-sidebar-toggle:hover {
-    background: #f0edff;
+    background: var(--accent-bg);
     color: var(--accent);
 }
 
@@ -191,16 +196,21 @@
     font-weight: 500;
     color: var(--text);
     cursor: pointer;
-    transition: all 0.12s;
+    transition:
+        transform var(--motion-fast) var(--ease-standard),
+        background var(--motion-fast) var(--ease-standard),
+        color var(--motion-fast) var(--ease-standard),
+        box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .hub-side-tab:hover {
-    background: #f8f7fa;
+    background: var(--table-row-hover-bg);
     color: var(--text-h);
+    transform: translateX(2px);
 }
 
 .hub-side-tab.active {
-    background: #f0edff;
+    background: var(--accent-bg);
     color: var(--accent);
     font-weight: 600;
 }
@@ -217,7 +227,44 @@
 .hub-main-content {
     flex: 1;
     overflow-y: auto;
-    background: #f5f5f7;
+    background: var(--bg);
+    min-width: 0;
+    animation: ui-fade-in-up var(--motion-base) var(--ease-standard);
+}
+
+.hub-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface-muted);
+    color: var(--text-h);
+    white-space: nowrap;
+}
+
+.hub-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #a1a1aa;
+    transition: background var(--motion-fast) var(--ease-standard);
+}
+
+.hub-status-pill.online .hub-status-dot {
+    background: #22c55e;
+    animation: ui-pulse-dot 1.8s ease-out infinite;
+}
+
+.hub-status-pill.offline .hub-status-dot {
+    background: #ef4444;
+}
+
+.hub-status-pill.checking .hub-status-dot {
+    background: #f59e0b;
 }
 
 .hub-header-right {
@@ -263,8 +310,8 @@
     align-items: center;
     justify-content: center;
     transition:
-        transform 0.15s,
-        box-shadow 0.15s;
+        transform var(--motion-fast) var(--ease-standard),
+        box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .hub-avatar-btn:hover {
@@ -276,6 +323,7 @@
     position: fixed;
     inset: 0;
     z-index: 40;
+    animation: ui-fade-in-up var(--motion-fast) var(--ease-standard);
 }
 
 .hub-profile-dropdown {
@@ -291,7 +339,7 @@
     display: flex;
     flex-direction: column;
     padding: 6px;
-    animation: hub-slide-up 0.15s ease-out;
+    animation: ui-fade-in-scale var(--motion-fast) var(--ease-standard);
 }
 
 .hub-dropdown-user {
@@ -360,12 +408,16 @@
     font-weight: 500;
     color: var(--text);
     cursor: pointer;
-    transition: background 0.1s;
+    transition:
+        transform var(--motion-fast) var(--ease-standard),
+        background var(--motion-fast) var(--ease-standard),
+        color var(--motion-fast) var(--ease-standard);
 }
 
 .hub-dropdown-item:hover {
     background: #faf9fb;
     color: var(--text-h);
+    transform: translateX(2px);
 }
 
 .hub-dropdown-logout {
@@ -379,10 +431,27 @@
 
 /* ── Hub Body ── */
 .hub-body {
-    width: 90%;
-    max-width: 1060px;
-    margin: 0 auto;
-    padding: 36px 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px 32px;
+    box-sizing: border-box;
+}
+
+.project-hub-body {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px 32px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+.project-feed-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px 12px;
 }
 
 .hub-notice {
@@ -923,6 +992,305 @@
     font-size: 13px;
 }
 
+/* ── Surveyor CAD Workspace ── */
+.cad-workspace-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 100vh;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+    background: #1f232b;
+    color: #e2e8f0;
+}
+
+.cad-topbar {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #2a2f38;
+    border-bottom: 1px solid #3a414d;
+}
+
+.cad-topbar-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.cad-title {
+    font-size: 13px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #f8fafc;
+}
+
+.cad-project-ref {
+    font-size: 12px;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cad-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.cad-chip-btn {
+    border: 1px solid #465063;
+    background: #303744;
+    color: #cbd5e1;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    font-family: var(--mono);
+    cursor: pointer;
+}
+
+.cad-chip-btn:hover {
+    border-color: #7aa2ff;
+    color: #f8fafc;
+}
+
+.cad-workspace-body {
+    display: grid;
+    grid-template-columns: 210px 1fr 260px;
+    min-height: 0;
+    flex: 1;
+}
+
+.cad-left-rail,
+.cad-right-panel {
+    background: #252a33;
+    border-right: 1px solid #3a414d;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.cad-right-panel {
+    border-right: none;
+    border-left: 1px solid #3a414d;
+    padding: 10px;
+    gap: 12px;
+}
+
+.cad-panel-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    padding: 10px;
+}
+
+.cad-tool-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 8px 10px;
+    overflow-y: auto;
+}
+
+.cad-tool-btn {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #cbd5e1;
+    text-align: left;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cad-tool-btn:hover {
+    background: #313946;
+}
+
+.cad-tool-btn.active {
+    border-color: #7aa2ff;
+    background: rgba(122, 162, 255, 0.16);
+    color: #eff6ff;
+}
+
+.cad-canvas-wrap {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #20242d;
+}
+
+.cad-canvas-grid {
+    flex: 1;
+    min-height: 340px;
+    background-color: #1a1e25;
+    background-image:
+        linear-gradient(rgba(88, 98, 114, 0.24) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(88, 98, 114, 0.24) 1px, transparent 1px);
+    background-size: 28px 28px;
+    position: relative;
+    touch-action: none;
+}
+
+.cad-canvas-overlay {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid #424b5d;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    color: #cbd5e1;
+    background: rgba(31, 35, 43, 0.82);
+}
+
+.cad-command-bar {
+    display: grid;
+    grid-template-columns: auto 1fr 210px auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid #3a414d;
+    background: #2a2f38;
+}
+
+.cad-command-bar label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+}
+
+.cad-command-input.input-field {
+    background: #1f232b;
+    border-color: #465063;
+    color: #e2e8f0;
+}
+
+.cad-layer-select.input-field {
+    min-width: 0;
+    background: #1f232b;
+    border-color: #465063;
+    color: #e2e8f0;
+}
+
+.cad-drawing-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.cad-panel-block {
+    border: 1px solid #3a414d;
+    border-radius: 8px;
+    background: #2c323d;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cad-prop-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.cad-prop-list div {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #cbd5e1;
+}
+
+.cad-prop-list strong {
+    color: #f8fafc;
+    font-family: var(--mono);
+    font-size: 11px;
+}
+
+.cad-layer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cad-layer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #cbd5e1;
+}
+
+.cad-layer-row input {
+    accent-color: #60a5fa;
+}
+
+@media (max-width: 1200px) {
+    .cad-workspace-body {
+        grid-template-columns: 180px 1fr 220px;
+    }
+}
+
+@media (max-width: 980px) {
+    .cad-workspace-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+    }
+
+    .cad-left-rail {
+        border-right: none;
+        border-bottom: 1px solid #3a414d;
+    }
+
+    .cad-tool-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    }
+
+    .cad-right-panel {
+        border-left: none;
+        border-top: 1px solid #3a414d;
+    }
+}
+
+@media (max-width: 680px) {
+    .cad-topbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .cad-command-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .cad-command-bar label {
+        margin-bottom: -4px;
+    }
+}
+
 .project-tools-layout {
     display: grid;
     grid-template-columns: 280px 1fr;
@@ -1076,7 +1444,7 @@
 
 /* Asset / Team pages need tighter vertical padding */
 .hub-body.ast-body {
-    padding: 20px 0 48px;
+    padding: 20px 28px 48px;
 }
 
 .hub-title-row {
@@ -1087,7 +1455,7 @@
 }
 
 .hub-title {
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 600;
     color: var(--text-h);
     margin: 0;
@@ -1114,9 +1482,9 @@
     padding: var(--panel-pad);
     cursor: pointer;
     transition:
-        box-shadow 0.15s,
-        transform 0.15s,
-        border-color 0.15s;
+        box-shadow var(--motion-base) var(--ease-standard),
+        transform var(--motion-base) var(--ease-emphasized),
+        border-color var(--motion-fast) var(--ease-standard);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -1125,7 +1493,7 @@
 .hub-project-card:hover {
     border-color: var(--accent);
     box-shadow: var(--shadow-hover);
-    transform: translateY(-1px);
+    transform: var(--lift-md);
 }
 
 .hub-card-top {
@@ -1227,7 +1595,7 @@
     justify-content: center;
     z-index: 100;
     padding: 24px;
-    animation: hub-fade-in 0.15s ease-out;
+    animation: ui-fade-in-up var(--motion-fast) var(--ease-standard);
 }
 
 @keyframes hub-fade-in {
@@ -1246,7 +1614,7 @@
     width: 100%;
     max-width: 500px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    animation: hub-slide-up 0.2s ease-out;
+    animation: ui-fade-in-scale var(--motion-base) var(--ease-emphasized);
 }
 
 @keyframes hub-slide-up {
@@ -1282,6 +1650,54 @@
 
 .hub-modal-actions .btn {
     padding: 9px 20px;
+}
+
+.hub-about-logo-wrap {
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hub-about-logo {
+    width: 64px;
+    height: 64px;
+    transition: transform var(--motion-base) var(--ease-emphasized);
+}
+
+.hub-modal:hover .hub-about-logo {
+    transform: scale(1.04) rotate(-2deg);
+}
+
+.hub-about-title {
+    margin: 0 0 8px;
+    color: var(--text-h);
+    font-size: 24px;
+    text-align: center;
+}
+
+.hub-about-version {
+    margin: 0 0 24px;
+    color: var(--text);
+    font-size: 15px;
+    text-align: center;
+}
+
+.hub-about-company-card {
+    background: var(--surface-muted);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    animation: ui-fade-in-up var(--motion-base) var(--ease-standard);
+}
+
+.hub-about-company-text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-h);
+    font-weight: 500;
+    text-align: center;
 }
 
 /* ── Filter Bar Spacing ── */
@@ -1375,8 +1791,74 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+    .hub-topbar {
+        height: auto;
+        min-height: 56px;
+        padding: 8px 12px;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .hub-topbar-left {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .hub-brand {
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .hub-topbar-right {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .hub-status-pill {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+
+    .hub-workspace {
+        min-width: 0;
+    }
+
+    .hub-sidebar {
+        width: 64px;
+    }
+
+    .hub-sidebar .hub-nav-label,
+    .hub-sidebar .hub-side-tab span,
+    .hub-sidebar .hub-sidebar-toggle-label {
+        display: none;
+    }
+
+    .hub-sidebar .hub-side-tab {
+        justify-content: center;
+        padding: 8px;
+    }
+
+    .hub-sidebar-nav {
+        padding: 12px 8px;
+    }
+
+    .hub-sidebar-toggle {
+        margin: auto 8px 10px;
+        padding: 8px;
+        justify-content: center;
+    }
+
     .hub-body {
         padding: 24px 16px;
+        width: 100%;
+    }
+
+    .project-hub-body {
+        padding: 18px 12px 24px;
+        width: 100%;
     }
 
     .hub-header {
@@ -1437,6 +1919,24 @@
     .project-dashboard-bottom-grid {
         grid-template-columns: 1fr;
     }
+}
+
+[data-theme="dark"] .hub-profile-dropdown,
+[data-theme="dark"] .hub-modal,
+[data-theme="dark"] .hub-header,
+[data-theme="dark"] .hub-body,
+[data-theme="dark"] .project-workspace-tab,
+[data-theme="dark"] .project-workspace-panel,
+[data-theme="dark"] .project-tool-card,
+[data-theme="dark"] .project-feed-item,
+[data-theme="dark"] .project-fullscreen-shell,
+[data-theme="dark"] .project-fullscreen-sidebar,
+[data-theme="dark"] .project-fullscreen-main {
+    background: var(--surface);
+}
+
+[data-theme="dark"] .hub-dropdown-divider {
+    background: var(--border);
 }
 
 /* ════════════════════════════════════════════
@@ -1592,6 +2092,31 @@
 
 .ast-tab-badge-warn {
     background: #f59e0b;
+}
+
+[data-theme="dark"] .ast-tabs {
+    background: var(--surface-muted);
+}
+
+[data-theme="dark"] .ast-tab.active {
+    background: var(--surface);
+}
+
+[data-theme="dark"] .ast-table td {
+    border-bottom-color: var(--border);
+}
+
+[data-theme="dark"] .ast-row:hover {
+    background: var(--table-row-hover-bg);
+}
+
+[data-theme="dark"] .ast-serial {
+    background: var(--code-bg);
+    color: var(--text-h);
+}
+
+[data-theme="dark"] .ast-tile-alert {
+    background: var(--surface-muted);
 }
 
 /* ── Register Table ── */

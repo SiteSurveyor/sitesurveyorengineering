@@ -3,6 +3,11 @@ import "../../styles/pages.css";
 import "../../styles/project-hub.css";
 import { listProjects, type ProjectWithOrg } from "../../lib/repositories/projects.ts";
 import { listInvoices, type InvoiceWithDetails } from "../../lib/repositories/invoices.ts";
+import { listJobEvents, type JobEventRow } from "../../lib/repositories/jobEvents.ts";
+import { listWorkspaceMembers } from "../../lib/repositories/workspaceMembers.ts";
+import { listCalibrations } from "../../lib/repositories/assets.ts";
+import { listQuotes } from "../../lib/repositories/quotes.ts";
+import { listAssets } from "../../lib/repositories/assets.ts";
 
 interface BusinessDashboardPageProps {
   userName?: string;
@@ -24,56 +29,72 @@ function getFirstName(name?: string): string {
   return firstName || "there";
 }
 
-const dispatchBoard = [
-  {
-    time: "07:30",
-    team: "Crew Alpha",
-    task: "Control points setup",
-    location: "Harare Ring Road",
-  },
-  {
-    time: "09:00",
-    team: "Crew Delta",
-    task: "As-built verification",
-    location: "Borrowdale Pump Station",
-  },
-  {
-    time: "13:30",
-    team: "UAV Unit",
-    task: "Flight block capture",
-    location: "Bulawayo Industrial Corridor",
-  },
-] as const;
-
-const teamUpdates = [
-  "2 new invitations are pending acceptance",
-  "Crew Bravo uploaded yesterday's field logs",
-  "Calibration due this week for 1 GNSS base and 1 total station",
-  "Finance approved 3 project expense claims this morning",
-] as const;
-
 export default function BusinessDashboardPage({
   userName,
   workspaceId,
 }: BusinessDashboardPageProps) {
   const [projects, setProjects] = useState<ProjectWithOrg[]>([]);
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
+  const [jobEvents, setJobEvents] = useState<JobEventRow[]>([]);
+  const [memberCount, setMemberCount] = useState(0);
+  const [assetsAvailableCount, setAssetsAvailableCount] = useState(0);
+  const [quotesPendingCount, setQuotesPendingCount] = useState(0);
+  const [calibrationsDueCount, setCalibrationsDueCount] = useState(0);
   
   useEffect(() => {
     if (!workspaceId) return;
     
     Promise.all([
       listProjects(workspaceId).catch(() => []),
-      listInvoices(workspaceId).catch(() => [])
-    ]).then(([p, i]) => {
+      listInvoices(workspaceId).catch(() => []),
+      listJobEvents(workspaceId).catch(() => []),
+      listWorkspaceMembers(workspaceId, { statuses: ["active"] }).catch(() => []),
+      listAssets(workspaceId).catch(() => []),
+      listQuotes(workspaceId).catch(() => []),
+      listCalibrations(workspaceId).catch(() => []),
+    ]).then(([p, i, events, members, assets, quotes, calibrations]) => {
       setProjects(p);
       setInvoices(i);
+      setJobEvents(events);
+      setMemberCount(members.length);
+      setAssetsAvailableCount(
+        assets.filter((asset) => asset.status === "available").length,
+      );
+      setQuotesPendingCount(
+        quotes.filter((quote) => quote.status === "draft" || quote.status === "sent")
+          .length,
+      );
+      const now = new Date();
+      const dueWindow = new Date();
+      dueWindow.setDate(now.getDate() + 7);
+      setCalibrationsDueCount(
+        calibrations.filter((item) => {
+          if (!item.next_calibration_date) return false;
+          const due = new Date(item.next_calibration_date);
+          return due >= now && due <= dueWindow;
+        }).length,
+      );
     });
   }, [workspaceId]);
 
   const activeProjectsCount = projects.filter(p => p.status === 'active').length;
   const pendingInvoices = invoices.filter(i => i.status === 'draft' || i.status === 'sent' || i.status === 'overdue');
   const pendingInvoicesTotal = pendingInvoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+  const dispatchBoard = jobEvents
+    .filter((event) => event.event_date === new Date().toISOString().slice(0, 10))
+    .slice(0, 3)
+    .map((event) => ({
+      time: event.start_time ? event.start_time.slice(0, 5) : "All day",
+      team: event.title,
+      task: event.event_type || "Field work",
+      location: event.location || "No location",
+    }));
+  const teamUpdates = [
+    `${memberCount} active team member${memberCount === 1 ? "" : "s"} in workspace`,
+    `${activeProjectsCount} project${activeProjectsCount === 1 ? "" : "s"} currently active`,
+    `${calibrationsDueCount} calibration${calibrationsDueCount === 1 ? "" : "s"} due in the next 7 days`,
+    `${quotesPendingCount} quote${quotesPendingCount === 1 ? "" : "s"} waiting for client action`,
+  ];
 
   const kpis = [
     {
@@ -84,8 +105,8 @@ export default function BusinessDashboardPage({
     },
     {
       label: "Dispatches Today",
-      value: "0",
-      subtext: "0 awaiting confirmation",
+      value: dispatchBoard.length.toString(),
+      subtext: `${dispatchBoard.filter((item) => item.time !== "All day").length} time-slotted events`,
       accent: "#3b82f6",
     },
     {
@@ -96,8 +117,8 @@ export default function BusinessDashboardPage({
     },
     {
       label: "Asset Availability",
-      value: "--",
-      subtext: "Tracking disabled",
+      value: assetsAvailableCount.toString(),
+      subtext: "ready for deployment",
       accent: "#22c55e",
     },
   ];
@@ -208,11 +229,11 @@ export default function BusinessDashboardPage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1.2fr 0.8fr",
+          gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 0.8fr)",
           gap: "24px",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", minWidth: 0 }}>
           <div className="card">
             <div
               className="card-header"
@@ -271,7 +292,7 @@ export default function BusinessDashboardPage({
               style={{
                 width: "100%",
                 padding: "12px",
-                background: "#f8fafc",
+                background: "var(--surface-muted)",
                 border: "none",
                 color: "var(--accent)",
                 fontWeight: 600,
@@ -332,16 +353,16 @@ export default function BusinessDashboardPage({
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", minWidth: 0 }}>
           <div
             className="card"
-            style={{ background: "#f8f6ff", borderColor: "#e0d4fc" }}
+            style={{ background: "var(--surface-muted)", borderColor: "var(--accent-border)" }}
           >
             <div
               className="card-header"
               style={{
                 paddingBottom: "16px",
-                borderBottom: "1px solid #e0d4fc",
+                borderBottom: "1px solid var(--accent-border)",
               }}
             >
               <h2
@@ -375,10 +396,10 @@ export default function BusinessDashboardPage({
 
                   <div
                     style={{
-                      background: "#fff",
+                      background: "var(--surface)",
                       border:
                         index === 0
-                          ? "1px solid #e0d4fc"
+                          ? "1px solid var(--accent-border)"
                           : "1px solid var(--border)",
                       padding: "12px",
                       borderRadius: "8px",
@@ -414,6 +435,11 @@ export default function BusinessDashboardPage({
                   </div>
                 </div>
               ))}
+              {dispatchBoard.length === 0 && (
+                <div style={{ color: "var(--text)", fontSize: "13px" }}>
+                  No dispatch events scheduled for today.
+                </div>
+              )}
             </div>
 
             <button
@@ -425,7 +451,7 @@ export default function BusinessDashboardPage({
                 color: "var(--accent)",
                 fontWeight: 600,
                 cursor: "pointer",
-                borderTop: "1px solid #e0d4fc",
+                borderTop: "1px solid var(--accent-border)",
               }}
             >
               Open Dispatch Planner
@@ -458,7 +484,7 @@ export default function BusinessDashboardPage({
                   border: "1px solid var(--border)",
                   borderRadius: "10px",
                   padding: "12px",
-                  background: "#fff",
+                  background: "var(--surface)",
                 }}
               >
                 <div
@@ -480,7 +506,7 @@ export default function BusinessDashboardPage({
                     color: "var(--text-h)",
                   }}
                 >
-                  36
+                  {memberCount}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text)" }}>
                   active field staff
@@ -492,7 +518,7 @@ export default function BusinessDashboardPage({
                   border: "1px solid var(--border)",
                   borderRadius: "10px",
                   padding: "12px",
-                  background: "#fff",
+                  background: "var(--surface)",
                 }}
               >
                 <div
@@ -514,7 +540,7 @@ export default function BusinessDashboardPage({
                     color: "var(--text-h)",
                   }}
                 >
-                  21
+                  {assetsAvailableCount}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text)" }}>
                   available for deployment
@@ -526,7 +552,7 @@ export default function BusinessDashboardPage({
                   border: "1px solid var(--border)",
                   borderRadius: "10px",
                   padding: "12px",
-                  background: "#fff",
+                  background: "var(--surface)",
                 }}
               >
                 <div
@@ -548,7 +574,7 @@ export default function BusinessDashboardPage({
                     color: "var(--text-h)",
                   }}
                 >
-                  6
+                  {quotesPendingCount}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text)" }}>
                   awaiting approval
@@ -560,7 +586,7 @@ export default function BusinessDashboardPage({
                   border: "1px solid var(--border)",
                   borderRadius: "10px",
                   padding: "12px",
-                  background: "#fff",
+                  background: "var(--surface)",
                 }}
               >
                 <div
@@ -582,10 +608,10 @@ export default function BusinessDashboardPage({
                     color: "var(--text-h)",
                   }}
                 >
-                  3
+                  {calibrationsDueCount}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text)" }}>
-                  pending lodgement
+                  due this week
                 </div>
               </div>
             </div>

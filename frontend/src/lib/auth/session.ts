@@ -13,7 +13,7 @@ export interface SignUpInput {
   accountType: "personal" | "business";
   workspaceName?: string;
   company?: string;
-  plsLicense?: string;
+  promoCode?: string;
 }
 
 export interface SignUpResult {
@@ -67,7 +67,7 @@ export async function signUpWithEmail(
         account_type: input.accountType,
         workspace_name: input.workspaceName ?? input.company ?? null,
         company: input.company ?? null,
-        pls_license: input.plsLicense ?? null,
+        promo_code: input.promoCode ?? null,
       },
     },
   });
@@ -89,6 +89,31 @@ export async function signOut() {
   if (error) {
     throw error;
   }
+}
+
+export async function requestPasswordReset(email: string) {
+  const redirectTo = `${window.location.origin}/?auth=reset-password`;
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updatePassword(newPassword: string) {
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
 
 export function onAuthStateChange(

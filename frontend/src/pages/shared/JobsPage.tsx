@@ -1,12 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  listJobs,
-  createJob,
-  updateJob,
-} from "../../lib/repositories/jobs.ts";
-import { listProjects } from "../../lib/repositories/projects.ts";
+import { listJobs } from "../../lib/repositories/jobs.ts";
 import { mapStatus } from "../../lib/mappers.ts";
-import SelectDropdown from "../../components/SelectDropdown.tsx";
 import type { JobWithProject } from "../../lib/repositories/jobs.ts";
 import "../../styles/pages.css";
 
@@ -29,21 +23,7 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<JobFilter>("all");
   const [selectedJob, setSelectedJob] = useState<JobWithProject | null>(null);
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [projectOptions, setProjectOptions] = useState<
-    { id: string; name: string }[]
-  >([]);
-  const [draft, setDraft] = useState({
-    title: "",
-    job_type: "Topographical",
-    location: "",
-    description: "",
-    project_id: "",
-    scheduled_start: "",
-    scheduled_end: "",
-  });
+  const [page, setPage] = useState(1);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -61,12 +41,6 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
     fetchJobs();
   }, [fetchJobs]);
 
-  useEffect(() => {
-    listProjects(workspaceId).then((projs) =>
-      setProjectOptions(projs.map((p: any) => ({ id: p.id, name: p.name }))),
-    );
-  }, [workspaceId]);
-
   const filtered = jobs.filter((job) => {
     if (
       typeFilter !== "all" &&
@@ -82,6 +56,17 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
     }
     return true;
   });
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const formatDate = (iso: string | null) => {
     if (!iso) return "—";
@@ -105,42 +90,6 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
         return "badge-gray";
       default:
         return "badge-gray";
-    }
-  };
-
-  const openCreateForm = () => {
-    setCreateError(null);
-    setDraft({
-      title: "",
-      job_type: "Topographical",
-      location: "",
-      description: "",
-      project_id: "",
-      scheduled_start: "",
-      scheduled_end: "",
-    });
-    setIsCreateOpen(true);
-  };
-
-  const submitCreate = async () => {
-    if (!draft.title.trim()) {
-      setCreateError("Title is required.");
-      return;
-    }
-    try {
-      await createJob(workspaceId, {
-        title: draft.title.trim(),
-        job_type: draft.job_type || null,
-        location: draft.location.trim() || null,
-        description: draft.description.trim() || null,
-        project_id: draft.project_id || null,
-        scheduled_start: draft.scheduled_start || null,
-        scheduled_end: draft.scheduled_end || null,
-      });
-      setIsCreateOpen(false);
-      await fetchJobs();
-    } catch (err: any) {
-      setCreateError(err.message ?? "Failed to create job");
     }
   };
 
@@ -175,13 +124,8 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
         <div>
           <h1>Jobs</h1>
           <p className="page-subtitle">
-            Manage field jobs, site visits, and survey assignments
+            View field jobs, site visits, and survey assignments
           </p>
-        </div>
-        <div className="header-actions">
-          <button className="btn btn-primary" onClick={openCreateForm}>
-            + Create Job
-          </button>
         </div>
       </header>
 
@@ -365,7 +309,7 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((job) => {
+            {paginated.map((job) => {
               const statusLabel = mapStatus(job.status);
               const bgStatus =
                 statusLabel === "Planned" || statusLabel === "Scheduled"
@@ -539,148 +483,23 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
               style={{ margin: 0, color: "var(--text)", fontSize: "13px" }}
             >
               {jobs.length === 0
-                ? "Create your first job to get started."
+                ? "No jobs available in the system yet."
                 : "Try adjusting your search criteria."}
             </p>
           </div>
         )}
-      </div>
-
-      {isCreateOpen && (
-        <div
-          className="mkt-modal-overlay"
-          onClick={() => setIsCreateOpen(false)}
-        >
-          <div
-            className="mkt-modal mkt-post-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mkt-modal-header">
-              <span className="mkt-modal-icon">
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
-                </svg>
-              </span>
-              <div>
-                <h2 className="mkt-modal-title">Create Job</h2>
-                <p className="mkt-modal-type">
-                  Add a new field job or survey assignment
-                </p>
-              </div>
-              <button
-                className="mkt-modal-close"
-                onClick={() => setIsCreateOpen(false)}
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mkt-post-grid">
-              <input
-                className="input-field"
-                placeholder="Job title"
-                value={draft.title}
-                onChange={(e) =>
-                  setDraft({ ...draft, title: e.target.value })
-                }
-              />
-              <SelectDropdown
-                className="input-field mkt-post-select"
-                value={draft.job_type}
-                onChange={(val) =>
-                  setDraft({ ...draft, job_type: val })
-                }
-                options={[
-                  { value: "Topographical", label: "Topographical" },
-                  { value: "Cadastral", label: "Cadastral" },
-                  { value: "Engineering", label: "Engineering" },
-                  { value: "Mining", label: "Mining" },
-                  { value: "Monitoring", label: "Monitoring" }
-                ]}
-              />
-              <input
-                className="input-field"
-                placeholder="Location"
-                value={draft.location}
-                onChange={(e) =>
-                  setDraft({ ...draft, location: e.target.value })
-                }
-              />
-              <SelectDropdown
-                className="input-field"
-                value={draft.project_id}
-                onChange={(val) =>
-                  setDraft({ ...draft, project_id: val })
-                }
-                options={[
-                  { value: "", label: "Select Project (optional)" },
-                  ...projectOptions.map(p => ({ value: p.id, label: p.name }))
-                ]}
-              />
-              <input
-                type="date"
-                className="input-field"
-                placeholder="Scheduled start"
-                value={draft.scheduled_start}
-                onChange={(e) =>
-                  setDraft({ ...draft, scheduled_start: e.target.value })
-                }
-              />
-              <input
-                type="date"
-                className="input-field"
-                placeholder="Scheduled end"
-                value={draft.scheduled_end}
-                onChange={(e) =>
-                  setDraft({ ...draft, scheduled_end: e.target.value })
-                }
-              />
-            </div>
-            <textarea
-              className="mkt-post-textarea"
-              placeholder="Description"
-              value={draft.description}
-              onChange={(e) =>
-                setDraft({ ...draft, description: e.target.value })
-              }
-            />
-            {createError && (
-              <div className="mkt-post-error">{createError}</div>
-            )}
-            <div className="mkt-modal-actions">
-              <button className="btn btn-primary" onClick={submitCreate}>
-                Create Job
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={() => setIsCreateOpen(false)}
-              >
-                Cancel
-              </button>
-            </div>
+        {filtered.length > pageSize && (
+          <div className="list-pagination">
+            <button className="btn btn-outline btn-sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+              Previous
+            </button>
+            <span className="list-pagination-label">Page {page} / {totalPages}</span>
+            <button className="btn btn-outline btn-sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+              Next
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
