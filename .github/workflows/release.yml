@@ -92,6 +92,26 @@ jobs:
         working-directory: backend
         run: npx --prefix ../frontend tauri android init --ci
 
+      - name: Apply SiteSurveyor Android launcher icons
+        run: |
+          cp -f backend/icons/android/mipmap-anydpi-v26/ic_launcher.xml backend/gen/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          cp -f backend/icons/android/values/ic_launcher_background.xml backend/gen/android/app/src/main/res/values/ic_launcher_background.xml
+          cp -f backend/icons/android/mipmap-hdpi/ic_launcher.png backend/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp -f backend/icons/android/mipmap-hdpi/ic_launcher_round.png backend/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          cp -f backend/icons/android/mipmap-hdpi/ic_launcher_foreground.png backend/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+          cp -f backend/icons/android/mipmap-mdpi/ic_launcher.png backend/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp -f backend/icons/android/mipmap-mdpi/ic_launcher_round.png backend/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+          cp -f backend/icons/android/mipmap-mdpi/ic_launcher_foreground.png backend/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+          cp -f backend/icons/android/mipmap-xhdpi/ic_launcher.png backend/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp -f backend/icons/android/mipmap-xhdpi/ic_launcher_round.png backend/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          cp -f backend/icons/android/mipmap-xhdpi/ic_launcher_foreground.png backend/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+          cp -f backend/icons/android/mipmap-xxhdpi/ic_launcher.png backend/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp -f backend/icons/android/mipmap-xxhdpi/ic_launcher_round.png backend/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+          cp -f backend/icons/android/mipmap-xxhdpi/ic_launcher_foreground.png backend/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+          cp -f backend/icons/android/mipmap-xxxhdpi/ic_launcher.png backend/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp -f backend/icons/android/mipmap-xxxhdpi/ic_launcher_round.png backend/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          cp -f backend/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png backend/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+
       - name: Setup Android signing
         working-directory: backend/gen/android
         env:
