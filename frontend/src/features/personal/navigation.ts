@@ -1,0 +1,38 @@
+import type { WorkspaceNavGroup } from "../workspace/types";
+
+export const personalNavGroups: WorkspaceNavGroup[] = [
+  {
+    items: [{ view: "dashboard", label: "Dashboard", icon: "dashboard" }],
+  },
+  {
+    label: "WORK",
+    items: [
+      { view: "schedule", label: "Schedule", icon: "calendar" },
+      { view: "projects", label: "Projects", icon: "folder" },
+      { view: "files", label: "File Manager", icon: "file-manager" },
+      { view: "quotes", label: "Quotes", icon: "document" },
+    ],
+  },
+  {
+    label: "FINANCES",
+    items: [
+      { view: "invoices", label: "Invoices", icon: "document" },
+      { view: "billing", label: "Billing & Payments", icon: "billing" },
+    ],
+  },
+  {
+    label: "PEOPLE",
+    items: [
+      { view: "contacts", label: "Contacts", icon: "people" },
+      { view: "professionals", label: "Hire Crew", icon: "person-plus" },
+      { view: "jobs", label: "Find Jobs", icon: "briefcase" },
+    ],
+  },
+  {
+    label: "MARKETPLACE",
+    items: [
+      { view: "marketplace", label: "Marketplace", icon: "shopping" },
+      { view: "assets", label: "My Instruments", icon: "asset" },
+    ],
+  },
+];

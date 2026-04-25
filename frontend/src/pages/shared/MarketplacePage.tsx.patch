@@ -1,0 +1,401 @@
+--- /home/succeed/sitesurveyorengineering/frontend/src/pages/shared/MarketplacePage.tsx
++++ /home/succeed/sitesurveyorengineering/frontend/src/pages/shared/MarketplacePage.tsx
+@@ -1,5 +1,8 @@
+-import { useState } from 'react'
++import { useState, useEffect, useCallback } from 'react'
++import { listMarketplaceListings, createMarketplaceListing } from '../../lib/repositories/marketplace.ts'
++import type { MarketplaceListingRow, MarketplaceListingInsert } from '../../lib/repositories/marketplace.ts'
+ import '../../styles/pages.css'
+ 
+ /* ── SVG Icon Components ── */
+ function IconTotalStation() {
+@@ -95,20 +98,18 @@
+   const Ico = iconMap[type] || IconTotalStation
+   return <Ico />
+ }
+ 
+-/* ── Data ── */
+-interface Listing {
+-  id: string
+-  name: string
+-  type: string
+-  condition: 'New' | 'Like New' | 'Good' | 'Fair' | 'Service'
+-  price: number
+-  currency: string
+-  seller: string
+-  location: string
+-  posted: string
+-  description: string
+-  specs: string[]
+-  isMine?: boolean
+-}
+-
+-const listings: Listing[] = [
+-  {
+-    id: 'MKT-001',
+-    name: 'Trimble S7 Total Station',
+-    type: 'Total Station',
+-    condition: 'Like New',
+-    price: 18500,
+-    currency: 'USD',
+-    seller: 'Geo Solutions Harare',
+-    location: 'Harare',
+-    posted: '2 days ago',
+-    description: 'Trimble S7 with DR Plus, Autolock, and VISION camera. Includes 2 batteries, charger, and hard case. Only 6 months of use.',
+-    specs: ['DR Plus (1000m)', 'Autolock', '1" accuracy', 'VISION camera'],
+-    isMine: true,
+-  },
+-  {
+-    id: 'MKT-002',
+-    name: 'Leica TS16 1" R500',
+-    type: 'Total Station',
+-    condition: 'Good',
+-    price: 12800,
+-    currency: 'USD',
+-    seller: 'Mutare Survey Supplies',
+-    location: 'Mutare',
+-    posted: '5 days ago',
+-    description: 'Leica TS16 with ATRplus. Well-maintained, recently calibrated. Comes with 3 batteries and tribrach.',
+-    specs: ['ATRplus', '1" accuracy', 'R500 EDM', 'Bluetooth'],
+-  },
+-  {
+-    id: 'MKT-003',
+-    name: 'Trimble R12i GNSS Receiver',
+-    type: 'GNSS Receiver',
+-    condition: 'New',
+-    price: 22000,
+-    currency: 'USD',
+-    seller: 'Precision Instruments ZW',
+-    location: 'Harare',
+-    posted: '1 day ago',
+-    description: 'Brand new Trimble R12i with Trimble TDC600 controller. Full RTK kit including base/rover setup, radio, and TSC5 controller.',
+-    specs: ['672 channels', 'RTK base/rover', 'Tilt compensation', 'IMU'],
+-  },
+-  {
+-    id: 'MKT-004',
+-    name: 'Leica DNA03 Digital Level',
+-    type: 'Digital Level',
+-    condition: 'Good',
+-    price: 4200,
+-    currency: 'USD',
+-    seller: 'BulawayoSurvey Traders',
+-    location: 'Bulawayo',
+-    posted: '1 week ago',
+-    description: 'Leica DNA03 with invar barcode staff. Ideal for precise levelling. Calibrated in December 2025.',
+-    specs: ['0.3mm per km', 'Electronic', 'USB data transfer', 'Invar staff included'],
+-  },
+-  {
+-    id: 'MKT-005',
+-    name: 'DJI Matrice 350 RTK Drone',
+-    type: 'UAV / Drone',
+-    condition: 'Like New',
+-    price: 14500,
+-    currency: 'USD',
+-    seller: 'AeroMap Zimbabwe',
+-    location: 'Harare',
+-    posted: '3 days ago',
+-    description: 'DJI M350 RTK with Zenmuse L2 LiDAR payload. Includes 4 batteries, charging hub, and D-RTK 2 base station.',
+-    specs: ['55 min flight time', 'RTK positioning', 'LiDAR payload', 'IP55 rated'],
+-    isMine: true,
+-  },
+-  {
+-    id: 'MKT-006',
+-    name: 'Sokkia FX-105 Total Station',
+-    type: 'Total Station',
+-    condition: 'Fair',
+-    price: 5800,
+-    currency: 'USD',
+-    seller: 'T. Maposa Surveying',
+-    location: 'Gweru',
+-    posted: '2 weeks ago',
+-    description: 'Sokkia FX-105 reflectorless total station. Fully functional, minor cosmetic wear. Great budget option for boundary work.',
+-    specs: ['5" accuracy', '500m reflectorless', 'Dual-axis compensator', 'USB'],
+-  },
+-  {
+-    id: 'MKT-007',
+-    name: 'Trimble TSC5 Controller',
+-    type: 'Controller',
+-    condition: 'New',
+-    price: 6500,
+-    currency: 'USD',
+-    seller: 'Precision Instruments ZW',
+-    location: 'Harare',
+-    posted: '4 days ago',
+-    description: 'Brand new Trimble TSC5 with Trimble Access 2025 license. 5.3" display, Android OS, rugged design.',
+-    specs: ['5.3" display', 'Android 12', 'Trimble Access', 'IP68'],
+-  },
+-  {
+-    id: 'MKT-008',
+-    name: 'Leica GS18 T GNSS Receiver',
+-    type: 'GNSS Receiver',
+-    condition: 'Good',
+-    price: 16800,
+-    currency: 'USD',
+-    seller: 'Masvingo Instruments',
+-    location: 'Masvingo',
+-    posted: '6 days ago',
+-    description: 'Leica GS18 T with tilt compensation. RTK rover with CS20 controller. Includes pole, bipod, and carry case.',
+-    specs: ['555 channels', 'Tilt compensation', 'RTK rover', 'CS20 controller'],
+-  },
+-  /* ── Calibration Service Listings ── */
+-  {
+-    id: 'MKT-CAL-001',
+-    name: 'Total Station Full Calibration',
+-    type: 'Calibration Service',
+-    condition: 'Service',
+-    price: 650,
+-    currency: 'USD',
+-    seller: 'Zimcal Calibration Lab',
+-    location: 'Harare',
+-    posted: '1 day ago',
+-    description: 'ISO 17025 accredited total station calibration. Horizontal & vertical angle tests, EDM verification, compensator check. Certificate issued within 5 working days.',
+-    specs: ['ISO 17025', '5-day turnaround', 'All brands', 'Certificate included'],
+-  },
+-  {
+-    id: 'MKT-CAL-002',
+-    name: 'GNSS Receiver Calibration & Test',
+-    type: 'Calibration Service',
+-    condition: 'Service',
+-    price: 800,
+-    currency: 'USD',
+-    seller: 'Precision Instruments ZW',
+-    location: 'Harare',
+-    posted: '3 days ago',
+-    description: 'Full GNSS receiver health check and calibration. Antenna phase centre verification, firmware update, L1/L2/L5 tracking test on baseline. Trimble and Leica specialist.',
+-    specs: ['Antenna phase test', 'Baseline verification', 'Firmware update', '7-day turnaround'],
+-  },
+-  {
+-    id: 'MKT-CAL-003',
+-    name: 'Digital Level Calibration',
+-    type: 'Calibration Service',
+-    condition: 'Service',
+-    price: 350,
+-    currency: 'USD',
+-    seller: 'Southern Africa Metrology',
+-    location: 'Bulawayo',
+-    posted: '5 days ago',
+-    description: 'Precise digital level calibration: peg test, compensator range verification, staff calibration check. SADCMET traceable certificate provided.',
+-    specs: ['SADCMET traceable', 'Peg test', 'Compensator check', '3-day turnaround'],
+-  },
+-  {
+-    id: 'MKT-CAL-004',
+-    name: 'EDM Baseline Verification',
+-    type: 'Calibration Service',
+-    condition: 'Service',
+-    price: 450,
+-    currency: 'USD',
+-    seller: 'Survey Standards Zimbabwe',
+-    location: 'Harare',
+-    posted: '1 week ago',
+-    description: 'EDM distance measurement verification on certified baseline. Multi-pillar test covering 20m to 1400m. Required for all government survey contracts.',
+-    specs: ['Certified baseline', '20m–1400m range', 'Government compliant', 'Same-day results'],
+-  },
+-]
+-
+ const conditionBadge: Record<string, string> = {
+   New: 'badge-green',
+   'Like New': 'badge-blue',
+@@ -282,18 +123,24 @@
+ 
+ type FilterType = 'all' | 'Total Station' | 'GNSS Receiver' | 'Digital Level' | 'UAV / Drone' | 'Controller' | 'Calibration Service'
+ 
+-export default function MarketplacePage() {
++interface MarketplacePageProps {
++  workspaceId: string;
++}
++
++export default function MarketplacePage({ workspaceId }: MarketplacePageProps) {
+   const [search, setSearch] = useState('')
+   const [typeFilter, setTypeFilter] = useState<FilterType>('all')
+-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null)
++  const [selectedListing, setSelectedListing] = useState<MarketplaceListingRow | null>(null)
+   const [showMine, setShowMine] = useState(false)
+   const [isPostOpen, setIsPostOpen] = useState(false)
+   const [postError, setPostError] = useState<string | null>(null)
++  const [loading, setLoading] = useState(true)
++  const [fetchError, setFetchError] = useState<string | null>(null)
+   const [newName, setNewName] = useState('')
+   const [newType, setNewType] = useState<FilterType>('Total Station')
+-  const [newCondition, setNewCondition] = useState<Listing['condition']>('Good')
++  const [newCondition, setNewCondition] = useState('Good')
+   const [newPrice, setNewPrice] = useState<number>(0)
+   const [newCurrency, setNewCurrency] = useState('USD')
+   const [newSeller, setNewSeller] = useState('')
+   const [newLocation, setNewLocation] = useState('')
+@@ -301,15 +148,27 @@
+   const [newDesc, setNewDesc] = useState('')
+   const [newSpecs, setNewSpecs] = useState('')
+-  const [newIsMine, setNewIsMine] = useState(true)
+ 
+-  const [listingState, setListingState] = useState<Listing[]>(listings)
++  const [listingState, setListingState] = useState<MarketplaceListingRow[]>([])
++
++  const fetchListings = useCallback(async () => {
++    try {
++      setFetchError(null)
++      const data = await listMarketplaceListings(workspaceId)
++      setListingState(data)
++    } catch (err: any) {
++      setFetchError(err.message ?? 'Failed to load listings')
++    } finally {
++      setLoading(false)
++    }
++  }, [workspaceId])
++
++  useEffect(() => {
++    fetchListings()
++  }, [fetchListings])
+ 
+   const filtered = listingState.filter((l) => {
+     if (typeFilter !== 'all' && l.type !== typeFilter) return false
+-    if (showMine && !l.isMine) return false
+     if (search.trim()) {
+       const q = search.toLowerCase()
+@@ -334,11 +193,10 @@
+     setNewLocation('')
+     setNewPosted('Just now')
+     setNewDesc('')
+     setNewSpecs('')
+-    setNewIsMine(true)
+     setPostError(null)
+   }
+ 
+-  const submitPostListing = () => {
++  const submitPostListing = async () => {
+     if (!newName.trim() || !newLocation.trim() || !newSeller.trim()) {
+       setPostError('Name, seller/provider, and location are required.')
+       return
+@@ -351,25 +209,24 @@
+       setPostError('Enter a valid price.')
+       return
+     }
+ 
+-    const next: Listing = {
+-      id: `MKT-${String(Date.now()).slice(-6)}`,
+-      name: newName.trim(),
+-      type: newType,
+-      condition: newCondition,
+-      price: Number(newPrice),
+-      currency: newCurrency.trim() || 'USD',
+-      seller: newSeller.trim(),
+-      location: newLocation.trim(),
+-      posted: newPosted.trim() || 'Just now',
+-      description: newDesc.trim(),
+-      specs: newSpecs
+-        .split(',')
+-        .map(s => s.trim())
+-        .filter(Boolean),
+-      isMine: newIsMine,
++    try {
++      const payload: MarketplaceListingInsert = {
++        name: newName.trim(),
++        type: newType,
++        condition: newCondition,
++        price: Number(newPrice),
++        currency: newCurrency.trim() || 'USD',
++        seller: newSeller.trim(),
++        location: newLocation.trim(),
++        description: newDesc.trim() || null,
++        specs: newSpecs.split(',').map(s => s.trim()).filter(Boolean),
++      }
++      const created = await createMarketplaceListing(workspaceId, payload)
++      setListingState(prev => [created, ...prev])
++      setIsPostOpen(false)
++      resetPostForm()
++    } catch (err: any) {
++      setPostError(err.message ?? 'Failed to save listing')
+     }
+-    setListingState(prev => [next, ...prev])
+-    setIsPostOpen(false)
+-    if (newIsMine) setShowMine(true)
+-    resetPostForm()
+   }
+ 
++  if (loading) {
++    return (
++      <div className="hub-body">
++        <p style={{ padding: '2rem' }}>Loading marketplace...</p>
++      </div>
++    )
++  }
++
+   return (
+     <div className="hub-body mkt-body">
++      {fetchError && (
++        <div style={{ background: '#fee', color: '#c00', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem' }}>
++          {fetchError}
++        </div>
++      )}
+       <header className="page-header mkt-header">
+         <div>
+@@ -382,7 +239,6 @@
+           <button className="btn btn-primary" onClick={() => { resetPostForm(); setIsPostOpen(true) }}>+ Post Listing</button>
+         </div>
+       </header>
+ 
+@@ -432,7 +288,7 @@
+                 <option value="Controller">Controller</option>
+                 <option value="Calibration Service">Calibration Service</option>
+               </select>
+-              <select className="mkt-post-select" value={newCondition} onChange={(e) => setNewCondition(e.target.value as Listing['condition'])}>
++              <select className="mkt-post-select" value={newCondition} onChange={(e) => setNewCondition(e.target.value)}>
+                 <option value="New">New</option>
+                 <option value="Like New">Like New</option>
+                 <option value="Good">Good</option>
+@@ -442,16 +298,11 @@
+               <input type="number" className="input-field" placeholder="Price" value={newPrice} onChange={(e) => setNewPrice(Number(e.target.value))} />
+               <input className="input-field" placeholder="Currency (e.g. USD)" value={newCurrency} onChange={(e) => setNewCurrency(e.target.value)} />
+               <input className="input-field" placeholder="Seller / Provider" value={newSeller} onChange={(e) => setNewSeller(e.target.value)} />
+               <input className="input-field" placeholder="Location" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} />
+-              <input className="input-field" placeholder="Posted label (e.g. 2 days ago)" value={newPosted} onChange={(e) => setNewPosted(e.target.value)} />
+             </div>
+             <textarea className="mkt-post-textarea" placeholder="Description" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+             <input className="input-field" placeholder="Specs (comma-separated)" value={newSpecs} onChange={(e) => setNewSpecs(e.target.value)} />
+-            <label className="mkt-post-checkbox">
+-              <input type="checkbox" checked={newIsMine} onChange={(e) => setNewIsMine(e.target.checked)} />
+-              This is my listing
+-            </label>
+             {postError && <div className="mkt-post-error">{postError}</div>}
+             <div className="mkt-modal-actions">
+               <button className="btn btn-primary" onClick={submitPostListing}>Post</button>
+@@ -479,15 +330,17 @@
+             </div>
+             <div className="mkt-modal-price">${selectedListing.price.toLocaleString()} <span className="mkt-modal-currency">{selectedListing.currency}</span></div>
+-            <p className="mkt-modal-desc">{selectedListing.description}</p>
++            {selectedListing.description && <p className="mkt-modal-desc">{selectedListing.description}</p>}
+-            <div className="mkt-modal-specs">
+-              {selectedListing.specs.map((s) => (
+-                <span key={s} className="mkt-spec-chip">{s}</span>
+-              ))}
+-            </div>
++            {selectedListing.specs && selectedListing.specs.length > 0 && (
++              <div className="mkt-modal-specs">
++                {selectedListing.specs.map((s) => (
++                  <span key={s} className="mkt-spec-chip">{s}</span>
++                ))}
++              </div>
++            )}
+             <div className="mkt-modal-seller">
+               <div className="mkt-seller-row">
+                 <span className="mkt-seller-label">{selectedListing.condition === 'Service' ? 'Provider' : 'Seller'}</span>
+                 <span className="mkt-seller-value">{selectedListing.seller}</span>
+               </div>
+               <div className="mkt-seller-row">
+@@ -496,7 +349,7 @@
+               </div>
+               <div className="mkt-seller-row">
+                 <span className="mkt-seller-label">Posted</span>
+-                <span className="mkt-seller-value">{selectedListing.posted}</span>
++                <span className="mkt-seller-value">{new Date(selectedListing.created_at).toLocaleDateString()}</span>
+               </div>
+             </div>
+             <div className="mkt-modal-actions">
+@@ -549,7 +402,7 @@
+                 <td className="mkt-cell-seller">
+                   <div className="mkt-seller">
+                     <span className="mkt-seller-name">{l.seller}</span>
+-                    <span className="mkt-seller-posted">{l.posted}</span>
++                    <span className="mkt-seller-posted">{new Date(l.created_at).toLocaleDateString()}</span>
+                   </div>
+                 </td>
+                 <td className="mkt-cell-menu">

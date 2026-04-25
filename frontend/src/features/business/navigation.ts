@@ -1,0 +1,36 @@
+import type { WorkspaceNavGroup } from "../workspace/types";
+
+export const businessNavGroups: WorkspaceNavGroup[] = [
+  {
+    items: [{ view: "dashboard", label: "Dashboard", icon: "dashboard" }],
+  },
+  {
+    label: "OPERATIONS",
+    items: [
+      { view: "quotes", label: "Quotes", icon: "document" },
+      { view: "projects", label: "Projects", icon: "folder" },
+      { view: "files", label: "File Manager", icon: "file-manager" },
+      { view: "dispatch", label: "Dispatch", icon: "calendar" },
+      { view: "schedule", label: "Schedule", icon: "calendar" },
+    ],
+  },
+  {
+    label: "FINANCES",
+    items: [{ view: "billing", label: "Billing & Payments", icon: "billing" }],
+  },
+  {
+    label: "RESOURCES",
+    items: [
+      { view: "team", label: "Team", icon: "people" },
+      { view: "assets", label: "Assets", icon: "asset" },
+    ],
+  },
+  {
+    label: "NETWORK",
+    items: [
+      { view: "jobs", label: "Job Board", icon: "briefcase" },
+      { view: "professionals", label: "Hire Pros", icon: "person" },
+      { view: "marketplace", label: "Marketplace", icon: "marketplace" },
+    ],
+  },
+];
