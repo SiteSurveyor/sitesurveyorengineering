@@ -54,18 +54,6 @@ export default function BusinessWorkspaceShell({
   }, [user.licenseStatus, user.licenseTier]);
 
   useEffect(() => {
-    const accessible = getAccessibleView(
-      "business",
-      currentView,
-      user.licenseTier,
-      user.licenseStatus,
-    );
-    if (accessible !== currentView) {
-      setCurrentView(accessible);
-    }
-  }, [currentView, user.licenseTier, user.licenseStatus]);
-
-  useEffect(() => {
     localStorage.setItem(storageKey, activeView);
   }, [activeView, storageKey]);
 
