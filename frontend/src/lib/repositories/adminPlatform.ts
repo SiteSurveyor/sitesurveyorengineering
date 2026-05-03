@@ -1,6 +1,8 @@
 import { supabase } from "../supabase/client.ts";
 import type { LicenseEvent, WorkspaceLicense } from "./workspaceLicenses.ts";
 
+const adminDb = supabase as any;
+
 export interface WorkspaceRowWithLicense {
   id: string;
   name: string;
@@ -24,7 +26,7 @@ export function pickWorkspaceLicense(
 export async function listWorkspacesWithLicenses(): Promise<
   WorkspaceRowWithLicense[]
 > {
-  const { data, error } = await supabase
+  const { data, error } = await adminDb
     .from("workspaces")
     .select(
       "id, name, type, slug, owner_user_id, archived_at, created_at, updated_at, workspace_licenses(*)",
@@ -55,7 +57,7 @@ export async function listGlobalLicenseEvents(opts: {
   offset?: number;
 }): Promise<LicenseEventWithWorkspace[]> {
   const { limit, offset = 0 } = opts;
-  const { data, error } = await supabase
+  const { data, error } = await adminDb
     .from("license_events")
     .select("*, workspaces(name, type)")
     .order("created_at", { ascending: false })

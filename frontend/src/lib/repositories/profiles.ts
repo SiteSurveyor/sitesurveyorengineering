@@ -2,7 +2,11 @@ import { getCurrentUser } from "../auth/session.ts";
 import { supabase } from "../supabase/client.ts";
 import type { Tables, TablesUpdate } from "../supabase/types.ts";
 
-export type ProfileRow = Tables<"profiles">;
+// Keep compatibility when generated DB types lag behind migrations.
+export type ProfileRow = Tables<"profiles"> & {
+  is_platform_admin?: boolean;
+  auth_signup_account_type?: string | null;
+};
 export type ProfileUpdate = TablesUpdate<"profiles">;
 
 export async function getMyProfile(): Promise<ProfileRow | null> {

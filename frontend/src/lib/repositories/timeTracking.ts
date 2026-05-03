@@ -1,6 +1,8 @@
 import { getCurrentUser } from "../auth/session.ts";
 import { supabase } from "../supabase/client.ts";
 
+const trackingDb = supabase as any;
+
 export interface TimeEntryRow {
   id: string;
   workspace_id: string;
@@ -46,7 +48,7 @@ export async function listTimeEntries(workspaceId: string): Promise<TimeEntryRow
   const user = await getCurrentUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const { data, error } = await trackingDb
     .from("time_entries")
     .select("*, projects(name)")
     .eq("workspace_id", workspaceId)
@@ -62,7 +64,7 @@ export async function listExpenseEntries(workspaceId: string): Promise<ExpenseEn
   const user = await getCurrentUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const { data, error } = await trackingDb
     .from("expense_entries")
     .select("*, projects(name)")
     .eq("workspace_id", workspaceId)
@@ -81,7 +83,7 @@ export async function createTimeEntry(
   const user = await getCurrentUser();
   if (!user) throw new Error("You must be signed in to log time.");
 
-  const { data, error } = await supabase
+  const { data, error } = await trackingDb
     .from("time_entries")
     .insert({
       ...input,
@@ -102,7 +104,7 @@ export async function createExpenseEntry(
   const user = await getCurrentUser();
   if (!user) throw new Error("You must be signed in to log expenses.");
 
-  const { data, error } = await supabase
+  const { data, error } = await trackingDb
     .from("expense_entries")
     .insert({
       ...input,

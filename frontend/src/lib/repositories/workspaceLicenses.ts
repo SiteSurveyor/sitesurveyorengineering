@@ -4,6 +4,8 @@ import { supabase } from "../supabase/client.ts";
 export type { LicenseTier, LicenseStatus } from "../../features/workspace/types.ts";
 import type { LicenseTier, LicenseStatus } from "../../features/workspace/types.ts";
 
+const billingDb = supabase as any;
+
 export interface WorkspaceLicense {
   workspace_id: string;
   tier: LicenseTier;
@@ -37,7 +39,7 @@ export interface LicenseEvent {
 export async function getWorkspaceLicense(
   workspaceId: string,
 ): Promise<WorkspaceLicense | null> {
-  const { data, error } = await supabase
+  const { data, error } = await billingDb
     .from("workspace_licenses")
     .select("*")
     .eq("workspace_id", workspaceId)
@@ -56,7 +58,7 @@ export async function updateWorkspaceLicense(
     >
   >,
 ): Promise<WorkspaceLicense> {
-  const { data, error } = await supabase
+  const { data, error } = await billingDb
     .from("workspace_licenses")
     .update(patch)
     .eq("workspace_id", workspaceId)
@@ -70,7 +72,7 @@ export async function updateWorkspaceLicense(
 export async function listLicenseEvents(
   workspaceId: string,
 ): Promise<LicenseEvent[]> {
-  const { data, error } = await supabase
+  const { data, error } = await billingDb
     .from("license_events")
     .select("*")
     .eq("workspace_id", workspaceId)
