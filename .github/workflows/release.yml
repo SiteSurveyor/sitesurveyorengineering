@@ -88,6 +88,20 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Validate Supabase endpoint before Android build
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUPABASE_URL="$(awk -F= '/^VITE_SUPABASE_URL=/{print $2}' frontend/.env)"
+          if [ -z "${SUPABASE_URL}" ]; then
+            echo "Missing VITE_SUPABASE_URL in frontend/.env"
+            exit 1
+          fi
+          if ! curl -sS --connect-timeout 10 -o /dev/null "${SUPABASE_URL}/auth/v1/health"; then
+            echo "Supabase endpoint is unreachable: ${SUPABASE_URL}"
+            exit 1
+          fi
+
       - name: Initialize Android project
         working-directory: backend
         run: npx --prefix ../frontend tauri android init --ci
