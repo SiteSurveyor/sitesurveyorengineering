@@ -3,6 +3,7 @@ import "../../styles/project-hub.css";
 import "../../styles/pages.css";
 import { listAssets, createAsset, updateAsset, listCalibrations, listMaintenanceEvents } from "../../lib/repositories/assets.ts";
 import SelectDropdown from "../../components/SelectDropdown.tsx";
+import WorkspaceUsageBanner from "../../components/WorkspaceUsageBanner.tsx";
 import { mapAssetRowToInstrument, type UiInstrument } from "../../lib/mappers.ts";
 
 /* ── Types ── */
@@ -219,6 +220,8 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
           </div>
         </div>
 
+        <WorkspaceUsageBanner workspaceId={workspaceId} />
+
         {/* Overview Tiles */}
         <div className="invoice-summary-row">
           <div
@@ -226,34 +229,21 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
             style={{ borderLeftColor: "var(--accent)" }}
           >
             <span className="invoice-summary-label">Instruments</span>
-            <span
-              className="invoice-summary-value"
-              style={{ fontSize: "32px" }}
-            >
-              {instruments.length}
-            </span>
+            <span className="invoice-summary-value">{instruments.length}</span>
           </div>
           <div
             className="invoice-summary-card"
             style={{ borderLeftColor: "#22c55e" }}
           >
             <span className="invoice-summary-label">Fleet Value</span>
-            <span
-              className="invoice-summary-value"
-              style={{ fontSize: "32px" }}
-            >
-              ${totalValue.toLocaleString()}
-            </span>
+            <span className="invoice-summary-value">${totalValue.toLocaleString()}</span>
           </div>
           <div
             className="invoice-summary-card"
             style={{ borderLeftColor: "#8b5cf6" }}
           >
             <span className="invoice-summary-label">Utilisation</span>
-            <span
-              className="invoice-summary-value"
-              style={{ fontSize: "32px" }}
-            >
+            <span className="invoice-summary-value">
               {Math.round((deployed / instruments.length) * 100)}%
             </span>
           </div>
@@ -262,10 +252,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
             style={{ borderLeftColor: "#3b82f6" }}
           >
             <span className="invoice-summary-label">Deployed</span>
-            <span
-              className="invoice-summary-value"
-              style={{ fontSize: "32px", color: "#1d4ed8" }}
-            >
+            <span className="invoice-summary-value" style={{ color: "#1d4ed8" }}>
               {deployed}
             </span>
           </div>
@@ -274,10 +261,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
             style={{ borderLeftColor: "#06b6d4" }}
           >
             <span className="invoice-summary-label">Available</span>
-            <span
-              className="invoice-summary-value"
-              style={{ fontSize: "32px", color: "#15803d" }}
-            >
+            <span className="invoice-summary-value" style={{ color: "#15803d" }}>
               {instruments.filter((i) => i.status === "Available").length}
             </span>
           </div>
@@ -288,10 +272,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
             <span className="invoice-summary-label">Calibrations Due</span>
             <span
               className="invoice-summary-value"
-              style={{
-                fontSize: "32px",
-                color: calibDue > 0 ? "#dc2626" : "var(--text-h)",
-              }}
+              style={{ color: calibDue > 0 ? "#dc2626" : "var(--text-h)" }}
             >
               {calibDue}
             </span>
@@ -434,9 +415,10 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
         {/* ═══ TAB: Register ═══ */}
         {activeTab === "register" && (
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ overflowX: 'auto' }}>
             <table
               className="invoice-table"
-              style={{ margin: 0, width: "100%", borderCollapse: "collapse" }}
+              style={{ margin: 0, width: "100%", borderCollapse: "collapse", minWidth: "600px" }}
             >
               <thead>
                 <tr style={{ borderBottom: "2px solid var(--border)" }}>
@@ -475,6 +457,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                     STATUS
                   </th>
                   <th
+                    className="hide-on-mobile"
                     style={{
                       padding: "16px 8px",
                       fontSize: "11px",
@@ -486,6 +469,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                     LOCATION / ASSIGNMENT
                   </th>
                   <th
+                    className="hide-on-mobile"
                     style={{
                       padding: "16px 8px",
                       fontSize: "11px",
@@ -577,7 +561,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           {inst.status}
                         </span>
                       </td>
-                      <td style={{ padding: "12px 8px" }}>
+                      <td className="hide-on-mobile" style={{ padding: "12px 8px" }}>
                         <div
                           style={{ display: "flex", flexDirection: "column" }}
                         >
@@ -595,7 +579,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                           </span>
                         </div>
                       </td>
-                      <td style={{ padding: "12px 8px" }}>
+                      <td className="hide-on-mobile" style={{ padding: "12px 8px" }}>
                         <div
                           style={{ display: "flex", flexDirection: "column" }}
                         >
@@ -659,6 +643,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                 })}
               </tbody>
             </table>
+            </div>
 
             {filtered.length === 0 && (
               <div
@@ -892,7 +877,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
-            <form onSubmit={handleCreate} style={{ padding: "20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <form onSubmit={handleCreate} className="responsive-grid-2" style={{ padding: "20px" }}>
               <input className="input-field" style={{ gridColumn: "1 / -1" }} placeholder="Name *" value={createForm.name} onChange={(e) => setCreateForm(f => ({ ...f, name: e.target.value }))} autoFocus required />
               <SelectDropdown
                 className="input-field"

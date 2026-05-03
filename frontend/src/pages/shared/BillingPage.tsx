@@ -3,6 +3,13 @@ import { listInvoices } from "../../lib/repositories/invoices.ts";
 import type { InvoiceWithDetails } from "../../lib/repositories/invoices.ts";
 import { createPayment, listPayments } from "../../lib/repositories/payments.ts";
 import type { PaymentWithInvoice } from "../../lib/repositories/payments.ts";
+import {
+  createPaymentMethod,
+  deletePaymentMethod,
+  listPaymentMethods,
+  setDefaultPaymentMethod,
+  type PaymentMethodRow,
+} from "../../lib/repositories/paymentMethods.ts";
 import { hasMinimumRole } from "../../lib/permissions.ts";
 import {
   getMyWorkspaceMembership,
@@ -17,56 +24,31 @@ import {
   type LicenseTier,
   type WorkspaceLicense,
 } from "../../lib/repositories/workspaceLicenses.ts";
+import {
+  formatWorkspaceBytes,
+  getWorkspaceUsage,
+  type WorkspaceUsageSnapshot,
+} from "../../lib/repositories/workspaceUsage.ts";
 import SelectDropdown from "../../components/SelectDropdown.tsx";
+import WorkspaceUsageBanner from "../../components/WorkspaceUsageBanner.tsx";
 import "../../styles/pages.css";
-
-interface PaymentMethod {
-  id: string;
-  type: "Card" | "Mobile Money";
-  label: string;
-  detail: string;
-  holder?: string;
-  expiry?: string;
-  isDefault: boolean;
-}
 
 interface BillingPageProps {
   workspaceId: string;
+  /** Workspace managers may edit tier/notes; only platform admins may edit license status (server-enforced). */
+  isPlatformAdmin?: boolean;
 }
 
-const METHODS_STORAGE_KEY = "sitesurveyorPaymentMethods";
-
-export default function BillingPage({ workspaceId }: BillingPageProps) {
+export default function BillingPage({
+  workspaceId,
+  isPlatformAdmin = false,
+}: BillingPageProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "history">(
     "overview",
   );
   const [notice, setNotice] = useState<string | null>(null);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(() => {
-    const raw = localStorage.getItem(METHODS_STORAGE_KEY);
-    if (raw) {
-      try {
-        return JSON.parse(raw);
-      } catch {}
-    }
-    return [
-      {
-        id: "pm-1",
-        type: "Card",
-        label: "VISA",
-        detail: "\u2022\u2022\u2022\u2022 4242",
-        holder: "T. Machingura",
-        expiry: "12/28",
-        isDefault: true,
-      },
-      {
-        id: "pm-2",
-        type: "Mobile Money",
-        label: "Mobile Money",
-        detail: "+263 77 *** **89",
-        isDefault: false,
-      },
-    ];
-  });
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodRow[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(true);
   const [history, setHistory] = useState<PaymentWithInvoice[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -83,6 +65,14 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
     useState<LicenseStatus>("active");
   const [licenseNotesDraft, setLicenseNotesDraft] = useState("");
   const [savingLicense, setSavingLicense] = useState(false);
+  const [usageReloadKey, setUsageReloadKey] = useState(0);
+  const [licenseModalUsage, setLicenseModalUsage] =
+    useState<WorkspaceUsageSnapshot | null>(null);
+  const [licenseModalUsageLoading, setLicenseModalUsageLoading] =
+    useState(false);
+  const [licenseModalUsageError, setLicenseModalUsageError] = useState<
+    string | null
+  >(null);
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
   const [recordPaymentError, setRecordPaymentError] = useState<string | null>(null);
@@ -95,7 +85,7 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
-  const [newType, setNewType] = useState<"Card" | "Mobile Money">("Card");
+  const [newType, setNewType] = useState<"Card" | "Mobile Money" | "Bank Transfer">("Card");
   const [newLabel, setNewLabel] = useState("");
   const [newDetail, setNewDetail] = useState("");
   const [newExpiry, setNewExpiry] = useState("");
@@ -105,12 +95,20 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
     "date-desc" | "date-asc" | "amount-desc"
   >("date-desc");
 
+  const fetchMethods = useCallback(async () => {
+    try {
+      const data = await listPaymentMethods(workspaceId);
+      setPaymentMethods(data);
+    } catch {
+      setPaymentMethods([]);
+    } finally {
+      setMethodsLoading(false);
+    }
+  }, [workspaceId]);
+
   useEffect(() => {
-    localStorage.setItem(
-      METHODS_STORAGE_KEY,
-      JSON.stringify(paymentMethods),
-    );
-  }, [paymentMethods]);
+    fetchMethods();
+  }, [fetchMethods]);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -170,6 +168,33 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
     fetchLicense();
   }, [fetchLicense]);
 
+  useEffect(() => {
+    if (!isLicenseModalOpen) {
+      setLicenseModalUsage(null);
+      setLicenseModalUsageError(null);
+      return;
+    }
+    let cancelled = false;
+    setLicenseModalUsageLoading(true);
+    setLicenseModalUsageError(null);
+    getWorkspaceUsage(workspaceId)
+      .then((snapshot) => {
+        if (!cancelled) setLicenseModalUsage(snapshot);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          setLicenseModalUsageError(
+            err instanceof Error ? err.message : "Failed to load usage.",
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setLicenseModalUsageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLicenseModalOpen, workspaceId]);
+
   const showNotice = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(null), 2300);
@@ -187,21 +212,24 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
       year: "numeric",
     });
 
-  const setDefaultMethod = (id: string) => {
-    setPaymentMethods((prev) =>
-      prev.map((method) => ({ ...method, isDefault: method.id === id })),
-    );
-    showNotice("Default payment method updated.");
+  const setDefaultMethod = async (id: string) => {
+    try {
+      await setDefaultPaymentMethod(workspaceId, id);
+      await fetchMethods();
+      showNotice("Default payment method updated.");
+    } catch (err: any) {
+      showNotice(err.message ?? "Failed to update default.");
+    }
   };
 
-  const removeMethod = (id: string) => {
-    setPaymentMethods((prev) => {
-      const next = prev.filter((method) => method.id !== id);
-      if (next.length === 0) return prev;
-      if (!next.some((method) => method.isDefault)) next[0].isDefault = true;
-      return [...next];
-    });
-    showNotice("Payment method removed.");
+  const removeMethod = async (id: string) => {
+    try {
+      await deletePaymentMethod(id);
+      await fetchMethods();
+      showNotice("Payment method removed.");
+    } catch (err: any) {
+      showNotice(err.message ?? "Failed to remove method.");
+    }
   };
 
   const resetMethodForm = () => {
@@ -212,24 +240,27 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
     setNewHolder("");
   };
 
-  const addMethod = () => {
+  const addMethod = async () => {
     if (!newLabel.trim() || !newDetail.trim()) {
       showNotice("Enter both label and details for the new method.");
       return;
     }
-    const method: PaymentMethod = {
-      id: `pm-${Date.now()}`,
-      type: newType,
-      label: newLabel.trim(),
-      detail: newDetail.trim(),
-      holder: newHolder.trim() || undefined,
-      expiry: newExpiry.trim() || undefined,
-      isDefault: paymentMethods.length === 0,
-    };
-    setPaymentMethods((prev) => [...prev, method]);
-    setIsAddMethodOpen(false);
-    resetMethodForm();
-    showNotice("Payment method added.");
+    try {
+      await createPaymentMethod(workspaceId, {
+        type: newType,
+        label: newLabel.trim(),
+        detail: newDetail.trim(),
+        holder: newHolder.trim() || null,
+        expiry: newExpiry.trim() || null,
+        is_default: paymentMethods.length === 0,
+      });
+      setIsAddMethodOpen(false);
+      resetMethodForm();
+      await fetchMethods();
+      showNotice("Payment method added.");
+    } catch (err: any) {
+      showNotice(err.message ?? "Failed to add method.");
+    }
   };
 
   const escapeCsv = (value: string | number | null | undefined) => {
@@ -325,7 +356,8 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
     }
   };
 
-  const canManageLicense = hasMinimumRole(membership?.role, "admin");
+  const canManageBilling = hasMinimumRole(membership?.role, "admin") || isPlatformAdmin;
+  const canManageLicense = isPlatformAdmin;
 
   const licenseTierLabel = (license?.tier ?? "free").toUpperCase();
   const licenseStatusLabel = (license?.status ?? "active").replaceAll("_", " ");
@@ -348,10 +380,11 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
       setSavingLicense(true);
       await updateWorkspaceLicense(workspaceId, {
         tier: licenseTierDraft,
-        status: licenseStatusDraft,
+        ...(isPlatformAdmin ? { status: licenseStatusDraft } : {}),
         notes: licenseNotesDraft.trim() || null,
       });
       await fetchLicense();
+      setUsageReloadKey((k) => k + 1);
       setIsLicenseModalOpen(false);
       showNotice("Workspace license updated.");
     } catch (err: any) {
@@ -407,16 +440,18 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
               </button>
             )}
           </div>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              resetRecordPaymentForm();
-              setIsRecordPaymentOpen(true);
-            }}
-            disabled={invoicesLoading || invoices.length === 0}
-          >
-            Record Payment
-          </button>
+          {canManageBilling && (
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                resetRecordPaymentForm();
+                setIsRecordPaymentOpen(true);
+              }}
+              disabled={invoicesLoading || invoices.length === 0}
+            >
+              Record Payment
+            </button>
+          )}
           <button
             className="btn btn-outline billing-statements-btn"
             onClick={downloadStatementCsv}
@@ -438,6 +473,10 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
         </div>
       </header>
       {notice && <div className="alert-bar alert-warning">{notice}</div>}
+      <WorkspaceUsageBanner
+        workspaceId={workspaceId}
+        reloadKey={usageReloadKey}
+      />
 
       <div className="invoice-summary-row billing-summary-row">
         <div className="invoice-summary-card billing-summary-card balance">
@@ -508,13 +547,16 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
         {activeTab === "overview" ? (
           <div className="billing-methods-panel">
             <h3 className="billing-section-title">Saved Methods</h3>
-            <div className="billing-method-grid">
-              {paymentMethods.map((method) => (
+            {methodsLoading ? (
+              <p style={{ color: "var(--text)" }}>Loading payment methods...</p>
+            ) : (
+              <div className="billing-method-grid">
+                {paymentMethods.map((method) => (
                 <div
                   key={method.id}
-                  className={`billing-method-card ${method.isDefault ? "is-default" : ""}`}
+                  className={`billing-method-card ${method.is_default ? "is-default" : ""}`}
                 >
-                  {method.isDefault && (
+                  {method.is_default && (
                     <span className="billing-default-badge">Default</span>
                   )}
                   <div className="billing-method-top">
@@ -539,43 +581,48 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
                     </div>
                   )}
                   <div className="billing-method-actions">
-                    {!method.isDefault && (
+                    {canManageBilling && !method.is_default && (
                       <button
                         className="btn btn-outline btn-sm"
-                        onClick={() => setDefaultMethod(method.id)}
+                        onClick={() => void setDefaultMethod(method.id)}
                       >
                         Set Default
                       </button>
                     )}
-                    <button
-                      className="btn btn-outline btn-sm"
-                      onClick={() => removeMethod(method.id)}
-                    >
-                      Remove
-                    </button>
+                    {canManageBilling && (
+                      <button
+                        className="btn btn-outline btn-sm"
+                        onClick={() => void removeMethod(method.id)}
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
-              <button
-                className="billing-add-method-btn"
-                onClick={() => setIsAddMethodOpen(true)}
-              >
-                <div className="billing-add-icon">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </div>
-                <span>Add Payment Method</span>
-              </button>
+              {canManageBilling && (
+                <button
+                  className="billing-add-method-btn"
+                  onClick={() => setIsAddMethodOpen(true)}
+                >
+                  <div className="billing-add-icon">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </div>
+                  <span>Add Payment Method</span>
+                </button>
+              )}
             </div>
+            )}
           </div>
         ) : (
           <div className="billing-history-panel">
@@ -617,13 +664,14 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
                 Loading payment history...
               </p>
             ) : (
-              <table className="invoice-table billing-history-table">
+              <div style={{ overflowX: 'auto' }}>
+              <table className="invoice-table billing-history-table" style={{ minWidth: '500px' }}>
                 <thead>
                   <tr>
                     <th>Date</th>
                     <th>Invoice</th>
-                    <th>Method</th>
-                    <th>Reference</th>
+                    <th className="hide-on-mobile">Method</th>
+                    <th className="hide-on-mobile">Reference</th>
                     <th>Amount</th>
                   </tr>
                 </thead>
@@ -634,8 +682,8 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
                       <td className="billing-history-invoice">
                         {entry.invoice_number ?? "\u2014"}
                       </td>
-                      <td>{entry.payment_method ?? "\u2014"}</td>
-                      <td>{entry.reference ?? "\u2014"}</td>
+                      <td className="hide-on-mobile">{entry.payment_method ?? "\u2014"}</td>
+                      <td className="hide-on-mobile">{entry.reference ?? "\u2014"}</td>
                       <td>{formatCurrency(entry.amount)}</td>
                     </tr>
                   ))}
@@ -650,6 +698,7 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
                   )}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -680,7 +729,8 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
                 }
                 options={[
                   { value: "Card", label: "Card" },
-                  { value: "Mobile Money", label: "Mobile Money" }
+                  { value: "Mobile Money", label: "Mobile Money" },
+                  { value: "Bank Transfer", label: "Bank Transfer" }
                 ]}
               />
               <input
@@ -840,18 +890,45 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
                   { value: "enterprise", label: "Enterprise" },
                 ]}
               />
-              <SelectDropdown
-                className="input-field billing-history-select"
-                value={licenseStatusDraft}
-                onChange={(val) => setLicenseStatusDraft(val as LicenseStatus)}
-                options={[
-                  { value: "trialing", label: "Trialing" },
-                  { value: "active", label: "Active" },
-                  { value: "past_due", label: "Past Due" },
-                  { value: "suspended", label: "Suspended" },
-                  { value: "cancelled", label: "Cancelled" },
-                ]}
-              />
+              {isPlatformAdmin ? (
+                <SelectDropdown
+                  className="input-field billing-history-select"
+                  value={licenseStatusDraft}
+                  onChange={(val) =>
+                    setLicenseStatusDraft(val as LicenseStatus)
+                  }
+                  options={[
+                    { value: "trialing", label: "Trialing" },
+                    { value: "active", label: "Active" },
+                    { value: "past_due", label: "Past Due" },
+                    { value: "suspended", label: "Suspended" },
+                    { value: "cancelled", label: "Cancelled" },
+                  ]}
+                />
+              ) : (
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Status (read-only)</label>
+                  <p
+                    className="billing-license-readonly-status"
+                    style={{
+                      margin: 0,
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "1px solid var(--border, #e2e8f0)",
+                      background: "var(--surface-muted, #f8fafc)",
+                      fontSize: 14,
+                    }}
+                  >
+                    {licenseStatusLabel}
+                  </p>
+                  <p
+                    className="form-hint"
+                    style={{ fontSize: 12, marginTop: 6, opacity: 0.85 }}
+                  >
+                    Only platform administrators can change subscription status.
+                  </p>
+                </div>
+              )}
               <input
                 className="input-field"
                 placeholder="Change notes (optional)"
@@ -859,6 +936,58 @@ export default function BillingPage({ workspaceId }: BillingPageProps) {
                 onChange={(e) => setLicenseNotesDraft(e.target.value)}
               />
             </div>
+            {licenseModalUsageLoading ? (
+              <p className="form-hint billing-license-usage-muted">
+                Loading current usage…
+              </p>
+            ) : null}
+            {licenseModalUsageError ? (
+              <p className="form-hint billing-license-usage-warn">
+                {licenseModalUsageError}
+              </p>
+            ) : null}
+            {licenseModalUsage && !licenseModalUsageLoading ? (
+              <div
+                className="billing-license-usage-summary"
+                aria-label="Current plan usage"
+              >
+                <div className="billing-license-usage-summary-title">
+                  Current usage
+                </div>
+                <ul className="billing-license-usage-list">
+                  <li>
+                    Seats: {licenseModalUsage.seats_used} /{" "}
+                    {licenseModalUsage.seat_limit == null
+                      ? "Unlimited"
+                      : licenseModalUsage.seat_limit}
+                  </li>
+                  <li>
+                    Projects: {licenseModalUsage.projects_used} /{" "}
+                    {licenseModalUsage.project_cap == null
+                      ? "Unlimited"
+                      : licenseModalUsage.project_cap}
+                  </li>
+                  <li>
+                    Instruments: {licenseModalUsage.assets_used} /{" "}
+                    {licenseModalUsage.asset_cap == null
+                      ? "Unlimited"
+                      : licenseModalUsage.asset_cap}
+                  </li>
+                  <li>
+                    Storage:{" "}
+                    {formatWorkspaceBytes(
+                      licenseModalUsage.storage_used_bytes,
+                    )}
+                    {" / "}
+                    {licenseModalUsage.storage_cap_bytes == null
+                      ? "Unlimited"
+                      : formatWorkspaceBytes(
+                          licenseModalUsage.storage_cap_bytes,
+                        )}
+                  </li>
+                </ul>
+              </div>
+            ) : null}
             <div className="billing-modal-actions">
               <button
                 className="btn btn-outline"

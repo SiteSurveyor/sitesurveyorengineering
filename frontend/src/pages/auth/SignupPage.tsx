@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatAuthUserFacingError } from "../../lib/auth/auth-errors.ts";
 import { signUpWithEmail } from "../../lib/auth/session.ts";
 import "../../styles/auth.css";
 
@@ -27,7 +28,7 @@ function getPasswordStrength(pw: string): {
 export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
   const [step, setStep] = useState<"type" | "details">("type");
   const [accountType, setAccountType] = useState<
-    "personal" | "business" | null
+    "personal" | "business" | "platform_admin" | null
   >(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -68,22 +69,33 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
       const normalizedCompany =
         accountType === "personal"
           ? "Independent Surveyor"
-          : company.trim() || "My Company";
+          : accountType === "platform_admin"
+            ? company.trim() ||
+              `${fullName.trim().split(/\s+/)[0] || "Admin"} — SiteSurveyor Admin`
+            : company.trim() || "My Company";
+
+      const workspaceNameForSignup =
+        accountType === "business"
+          ? normalizedCompany
+          : accountType === "platform_admin"
+            ? normalizedCompany
+            : undefined;
 
       const result = await signUpWithEmail({
         email,
         password,
         fullName,
         accountType,
-        workspaceName:
-          accountType === "business" ? normalizedCompany : undefined,
+        workspaceName: workspaceNameForSignup,
         company: normalizedCompany,
         promoCode: promoCode || undefined,
       });
 
       if (result.needsEmailConfirmation) {
         setSuccessMessage(
-          "Account created. Check your email to confirm your account, then sign in.",
+          accountType === "platform_admin"
+            ? "Account created. Confirm your email, then sign in. A SiteSurveyor super-admin must still enable platform operator access for your user before the Platform section appears in the app."
+            : "Account created. Check your email to confirm your account, then sign in.",
         );
         setTimeout(() => onGoToLogin(), 1200);
         return;
@@ -91,7 +103,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
 
       await onSignup();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create account");
+      setError(formatAuthUserFacingError(err, "Unable to create account."));
     } finally {
       setIsSubmitting(false);
     }
@@ -110,6 +122,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
 
           <div className="account-type-grid">
             <button
+              type="button"
               className={`account-type-card ${accountType === "personal" ? "selected" : ""}`}
               onClick={() => setAccountType("personal")}
             >
@@ -128,11 +141,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               </div>
-              <h3>Personal</h3>
-              <p>
-                For solo practitioners and freelance surveyors managing their
-                own projects and equipment.
-              </p>
+              <h3>Personal account</h3>
               <ul className="account-type-features">
                 <li>My Projects & Field Data</li>
                 <li>Personal Equipment Tracker</li>
@@ -142,6 +151,7 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
             </button>
 
             <button
+              type="button"
               className={`account-type-card ${accountType === "business" ? "selected" : ""}`}
               onClick={() => setAccountType("business")}
             >
@@ -162,16 +172,40 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </div>
-              <h3>Business</h3>
-              <p>
-                For surveying firms managing crews, equipment fleets, dispatch
-                schedules, and company finances.
-              </p>
+              <h3>Business account</h3>
               <ul className="account-type-features">
                 <li>Everything in Personal, plus:</li>
                 <li>Team & Crew Management</li>
                 <li>Dispatch Board & Scheduling</li>
                 <li>Analytics & Business Intelligence</li>
+              </ul>
+            </button>
+
+            <button
+              className={`account-type-card ${accountType === "platform_admin" ? "selected" : ""}`}
+              type="button"
+              onClick={() => setAccountType("platform_admin")}
+            >
+              <div className="account-type-icon platform-admin">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <h3>Platform administration</h3>
+              <ul className="account-type-features">
+                <li>Platform console &amp; all workspaces</li>
+                <li>License allocation &amp; tenant oversight</li>
+                <li>Global license activity &amp; audit</li>
+                <li>For trusted operators only</li>
               </ul>
             </button>
           </div>
@@ -206,7 +240,9 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
           <p className="auth-tagline">
             {accountType === "personal"
               ? "Set up your personal workspace"
-              : "Register your surveying firm"}
+              : accountType === "platform_admin"
+                ? "Create your platform operator account"
+                : "Register your surveying firm"}
           </p>
         </div>
 
@@ -266,6 +302,21 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
                   autoComplete="organization"
                 />
               </div>
+            ) : accountType === "platform_admin" ? (
+              <div className="form-group">
+                <label className="form-label">
+                  Organization label{" "}
+                  <span className="form-label-optional">(optional)</span>
+                </label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="SiteSurveyor Operations"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  autoComplete="organization"
+                />
+              </div>
             ) : (
               <div className="form-group">
                 <label className="form-label">
@@ -289,12 +340,27 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
               <input
                 className="form-input"
                 type="text"
-                placeholder="PROMO-2026-WELCOME"
+                placeholder="Early access code"
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value)}
               />
+              {/* Keep in sync with seed rows in supabase/migrations/20260504120000_monetisation_billing_limits_promo_marketplace.sql */}
+              <p className="form-hint" style={{ marginTop: "0.35rem" }}>
+                Campaign examples (when enabled on the server):{" "}
+                <strong>EARLYBIRD</strong>, <strong>FIELDCREW</strong>.
+              </p>
             </div>
           </div>
+
+          {accountType === "platform_admin" && (
+            <div className="auth-admin-signup-notice" role="note">
+              <strong>Trusted operators only.</strong> You are registering a
+              standard user account. Platform-wide operator privileges (licenses,
+              all workspaces, audit) are granted by a SiteSurveyor super-admin
+              after your account exists—this form does not turn those privileges
+              on by itself.
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Password</label>
@@ -384,7 +450,9 @@ export default function SignupPage({ onSignup, onGoToLogin }: SignupPageProps) {
           >
             {isSubmitting
               ? "Creating Account..."
-              : `Create ${accountType === "business" ? "Business" : "Personal"} Account`}
+              : accountType === "platform_admin"
+                ? "Create platform administration account"
+                : `Create ${accountType === "business" ? "Business" : "Personal"} Account`}
           </button>
         </form>
 

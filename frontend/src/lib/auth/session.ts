@@ -10,7 +10,7 @@ export interface SignUpInput {
   email: string;
   password: string;
   fullName: string;
-  accountType: "personal" | "business";
+  accountType: "personal" | "business" | "platform_admin";
   workspaceName?: string;
   company?: string;
   promoCode?: string;

@@ -975,6 +975,56 @@ export type Database = {
           },
         ];
       };
+      payment_methods: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          detail: string;
+          expiry: string | null;
+          holder: string | null;
+          id: string;
+          is_default: boolean;
+          label: string;
+          type: string;
+          updated_at: string;
+          workspace_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          detail: string;
+          expiry?: string | null;
+          holder?: string | null;
+          id?: string;
+          is_default?: boolean;
+          label: string;
+          type: string;
+          updated_at?: string;
+          workspace_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          detail?: string;
+          expiry?: string | null;
+          holder?: string | null;
+          id?: string;
+          is_default?: boolean;
+          label?: string;
+          type?: string;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_path: string | null;
@@ -1671,6 +1721,10 @@ export type Database = {
         Args: { workspace_name: string; workspace_slug?: string };
         Returns: string;
       };
+      get_workspace_usage: {
+        Args: { p_workspace_id: string };
+        Returns: Json;
+      };
       has_workspace_role: {
         Args: {
           allowed_roles: Database["public"]["Enums"]["workspace_member_role"][];
@@ -1690,6 +1744,10 @@ export type Database = {
       set_default_workspace: {
         Args: { target_workspace_id: string };
         Returns: boolean;
+      };
+      set_default_payment_method: {
+        Args: { p_workspace_id: string; p_method_id: string };
+        Returns: undefined;
       };
       shares_workspace_with_profile: {
         Args: { target_profile_id: string };

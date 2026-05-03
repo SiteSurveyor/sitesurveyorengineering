@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import WorkspaceShell from "../../components/workspace/WorkspaceShell";
-import { getAccessibleView, getAccountTypeLabel } from "../workspace/account";
+import { platformAdminNavGroup } from "../admin/adminNav.ts";
+import {
+  getAccessibleView,
+  getWorkspaceShellAccountLabel,
+} from "../workspace/account";
 import type { UiUser, WorkspaceView } from "../workspace/types";
 import { businessNavGroups } from "./navigation";
 import { renderBusinessView } from "./viewRegistry";
@@ -28,8 +32,9 @@ export default function BusinessWorkspaceShell({
         currentView,
         user.licenseTier,
         user.licenseStatus,
+        user.isPlatformAdmin,
       ),
-    [currentView, user.licenseStatus, user.licenseTier],
+    [currentView, user.isPlatformAdmin, user.licenseStatus, user.licenseTier],
   );
 
   const navGroups = useMemo(() => {
@@ -42,16 +47,32 @@ export default function BusinessWorkspaceShell({
             view,
             user.licenseTier,
             user.licenseStatus,
+            user.isPlatformAdmin,
           ) === view,
         ),
     );
-    return businessNavGroups
+    const base = businessNavGroups
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => allowed.has(item.view)),
       }))
       .filter((group) => group.items.length > 0);
-  }, [user.licenseStatus, user.licenseTier]);
+
+    if (!user.isPlatformAdmin) return base;
+
+    const adminItems = platformAdminNavGroup.items.filter(
+      (item) =>
+        getAccessibleView(
+          "business",
+          item.view,
+          user.licenseTier,
+          user.licenseStatus,
+          user.isPlatformAdmin,
+        ) === item.view,
+    );
+    if (adminItems.length === 0) return base;
+    return [...base, { ...platformAdminNavGroup, items: adminItems }];
+  }, [user.isPlatformAdmin, user.licenseStatus, user.licenseTier]);
 
   useEffect(() => {
     localStorage.setItem(storageKey, activeView);
@@ -62,7 +83,7 @@ export default function BusinessWorkspaceShell({
       user={user}
       activeView={activeView}
       navGroups={navGroups}
-      accountLabel={getAccountTypeLabel("business")}
+      accountLabel={getWorkspaceShellAccountLabel(user)}
       isProjectFullscreen={isProjectFullscreen}
       onChangeView={setCurrentView}
       onLogout={onLogout}

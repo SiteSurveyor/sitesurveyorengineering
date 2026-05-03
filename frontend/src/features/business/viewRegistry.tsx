@@ -15,6 +15,9 @@ import ProjectHubPage from "../../pages/shared/ProjectHubPage";
 import QuotesPage from "../../pages/shared/QuotesPage";
 import TimeTrackingPage from "../../pages/shared/TimeTrackingPage";
 import type { UiUser, WorkspaceView } from "../workspace/types";
+import AdminActivityPage from "../../pages/admin/AdminActivityPage";
+import AdminLicensesPage from "../../pages/admin/AdminLicensesPage";
+import AdminOverviewPage from "../../pages/admin/AdminOverviewPage";
 
 interface BusinessViewRegistryOptions {
   user: UiUser;
@@ -60,28 +63,57 @@ export function renderBusinessView(
       return <AssetManagementPage workspaceId={user.workspaceId} />;
 
     case "marketplace":
-      return <MarketplacePage workspaceId={user.workspaceId} />;
+      return (
+        <MarketplacePage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
 
     case "professionals":
-      return <ProfessionalsPage workspaceId={user.workspaceId} />;
+      return (
+        <ProfessionalsPage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
 
     case "team":
       return <TeamPage workspaceId={user.workspaceId} />;
 
     case "jobs":
-      return <JobsPage workspaceId={user.workspaceId} />;
+      return (
+        <JobsPage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
 
     case "schedule":
       return <SchedulePage workspaceId={user.workspaceId} />;
 
     case "billing":
-      return <BillingPage workspaceId={user.workspaceId} />;
+      return (
+        <BillingPage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
 
     case "contacts":
       return <ContactsPage workspaceId={user.workspaceId} />;
 
     case "invoices":
       return <InvoicesPage workspaceId={user.workspaceId} />;
+
+    case "admin_overview":
+      return <AdminOverviewPage isPlatformAdmin={user.isPlatformAdmin} />;
+
+    case "admin_licenses":
+      return <AdminLicensesPage isPlatformAdmin={user.isPlatformAdmin} />;
+
+    case "admin_activity":
+      return <AdminActivityPage isPlatformAdmin={user.isPlatformAdmin} />;
 
     case "profile":
     default:

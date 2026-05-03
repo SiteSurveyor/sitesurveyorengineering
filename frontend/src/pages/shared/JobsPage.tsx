@@ -1,11 +1,37 @@
 import { useState, useEffect, useCallback } from "react";
-import { listJobs } from "../../lib/repositories/jobs.ts";
+import {
+  archiveJob,
+  createJob,
+  listJobs,
+  updateJob,
+  type JobWithProject,
+} from "../../lib/repositories/jobs.ts";
+import { listProjects, type ProjectWithOrg } from "../../lib/repositories/projects.ts";
 import { mapStatus } from "../../lib/mappers.ts";
-import type { JobWithProject } from "../../lib/repositories/jobs.ts";
+import type { Database } from "../../lib/supabase/types.ts";
+import SelectDropdown from "../../components/SelectDropdown.tsx";
 import "../../styles/pages.css";
+
+type JobStatus = Database["public"]["Enums"]["job_status"];
 
 interface JobsPageProps {
   workspaceId: string;
+  isPlatformAdmin?: boolean;
+}
+
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromDatetimeLocal(s: string): string | null {
+  const t = s.trim();
+  if (!t) return null;
+  const d = new Date(t);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 type JobFilter =
@@ -16,10 +42,25 @@ type JobFilter =
   | "Mining"
   | "Monitoring";
 
-export default function JobsPage({ workspaceId }: JobsPageProps) {
+export default function JobsPage({
+  workspaceId,
+  isPlatformAdmin = false,
+}: JobsPageProps) {
   const [jobs, setJobs] = useState<JobWithProject[]>([]);
+  const [projects, setProjects] = useState<ProjectWithOrg[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [jobEditorOpen, setJobEditorOpen] = useState(false);
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [savingJob, setSavingJob] = useState(false);
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [jobType, setJobType] = useState("");
+  const [jobLocation, setJobLocation] = useState("");
+  const [jobStatus, setJobStatus] = useState<JobStatus>("planned");
+  const [jobProjectId, setJobProjectId] = useState("");
+  const [jobScheduledStart, setJobScheduledStart] = useState("");
+  const [jobScheduledEnd, setJobScheduledEnd] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<JobFilter>("all");
   const [selectedJob, setSelectedJob] = useState<JobWithProject | null>(null);
@@ -40,6 +81,91 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  const fetchProjects = useCallback(async () => {
+    if (!isPlatformAdmin) return;
+    try {
+      const data = await listProjects(workspaceId);
+      setProjects(data);
+    } catch {
+      setProjects([]);
+    }
+  }, [workspaceId, isPlatformAdmin]);
+
+  useEffect(() => {
+    void fetchProjects();
+  }, [fetchProjects]);
+
+  const openCreateEditor = () => {
+    setEditingJobId(null);
+    setJobTitle("");
+    setJobDescription("");
+    setJobType("");
+    setJobLocation("");
+    setJobStatus("planned");
+    setJobProjectId("");
+    setJobScheduledStart("");
+    setJobScheduledEnd("");
+    setJobEditorOpen(true);
+  };
+
+  const openEditEditor = (job: JobWithProject) => {
+    setEditingJobId(job.id);
+    setJobTitle(job.title);
+    setJobDescription(job.description ?? "");
+    setJobType(job.job_type ?? "");
+    setJobLocation(job.location ?? "");
+    setJobStatus(job.status);
+    setJobProjectId(job.project_id ?? "");
+    setJobScheduledStart(toDatetimeLocal(job.scheduled_start));
+    setJobScheduledEnd(toDatetimeLocal(job.scheduled_end));
+    setJobEditorOpen(true);
+    setSelectedJob(null);
+  };
+
+  const saveJobEditor = async () => {
+    if (!jobTitle.trim()) {
+      setError("Job title is required.");
+      return;
+    }
+    setError(null);
+    setSavingJob(true);
+    try {
+      const base = {
+        title: jobTitle.trim(),
+        description: jobDescription.trim() || null,
+        job_type: jobType.trim() || null,
+        location: jobLocation.trim() || null,
+        status: jobStatus,
+        project_id: jobProjectId || null,
+        scheduled_start: fromDatetimeLocal(jobScheduledStart),
+        scheduled_end: fromDatetimeLocal(jobScheduledEnd),
+      };
+      if (editingJobId) {
+        await updateJob(editingJobId, base);
+      } else {
+        await createJob(workspaceId, base);
+      }
+      setJobEditorOpen(false);
+      await fetchJobs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save job.");
+    } finally {
+      setSavingJob(false);
+    }
+  };
+
+  const handleArchiveJob = async (id: string) => {
+    if (!window.confirm("Archive this job? It will be hidden from the list.")) return;
+    setError(null);
+    try {
+      await archiveJob(id);
+      setSelectedJob(null);
+      await fetchJobs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to archive job.");
+    }
+  };
 
   const filtered = jobs.filter((job) => {
     if (
@@ -119,14 +245,41 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
 
       <header
         className="page-header"
-        style={{ padding: 0, marginBottom: "24px" }}
+        style={{
+          padding: 0,
+          marginBottom: "24px",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+        }}
       >
         <div>
           <h1>Jobs</h1>
           <p className="page-subtitle">
             View field jobs, site visits, and survey assignments
           </p>
+          {!isPlatformAdmin && (
+            <p
+              className="page-subtitle"
+              style={{ fontSize: 13, marginTop: 8, opacity: 0.85 }}
+            >
+              Job listings are maintained by platform administrators.
+            </p>
+          )}
         </div>
+        {isPlatformAdmin && (
+          <div className="header-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openCreateEditor}
+            >
+              Add job
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="filter-bar">
@@ -248,12 +401,171 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
               >
                 Close
               </button>
+              {isPlatformAdmin && selectedJob ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => openEditEditor(selectedJob)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => void handleArchiveJob(selectedJob.id)}
+                  >
+                    Archive
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {jobEditorOpen && (
+        <div
+          className="billing-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !savingJob && setJobEditorOpen(false)}
+        >
+          <div
+            className="billing-modal billing-modal--scrollable-form"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="billing-modal-header">
+              <h3>{editingJobId ? "Edit job" : "Add job"}</h3>
+              <button
+                type="button"
+                className="billing-modal-close"
+                disabled={savingJob}
+                onClick={() => setJobEditorOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="billing-modal-body-scroll">
+              <div className="billing-modal-grid billing-modal-form-single">
+                <label className="form-label" htmlFor="job-editor-title">
+                  Title
+                </label>
+                <input
+                  id="job-editor-title"
+                  className="input-field"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  placeholder="Job title"
+                />
+                <label className="form-label" htmlFor="job-editor-desc">
+                  Description
+                </label>
+                <textarea
+                  id="job-editor-desc"
+                  className="input-field"
+                  rows={3}
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Optional description"
+                />
+                <label className="form-label">Job type</label>
+                <SelectDropdown
+                  className="input-field billing-history-select"
+                  value={jobType}
+                  onChange={setJobType}
+                  placeholder="Type"
+                  options={[
+                    { value: "", label: "—" },
+                    { value: "Topographical", label: "Topographical" },
+                    { value: "Cadastral", label: "Cadastral" },
+                    { value: "Engineering", label: "Engineering" },
+                    { value: "Mining", label: "Mining" },
+                    { value: "Monitoring", label: "Monitoring" },
+                  ]}
+                />
+                <label className="form-label" htmlFor="job-editor-location">
+                  Location
+                </label>
+                <input
+                  id="job-editor-location"
+                  className="input-field"
+                  value={jobLocation}
+                  onChange={(e) => setJobLocation(e.target.value)}
+                  placeholder="Optional"
+                />
+                <label className="form-label">Status</label>
+                <SelectDropdown
+                  className="input-field billing-history-select"
+                  value={jobStatus}
+                  onChange={(v) => setJobStatus(v as JobStatus)}
+                  options={[
+                    { value: "planned", label: "Planned" },
+                    { value: "scheduled", label: "Scheduled" },
+                    { value: "in_progress", label: "In progress" },
+                    { value: "completed", label: "Completed" },
+                    { value: "cancelled", label: "Cancelled" },
+                  ]}
+                />
+                <label className="form-label">Project (optional)</label>
+                <SelectDropdown
+                  className="input-field billing-history-select"
+                  value={jobProjectId}
+                  onChange={setJobProjectId}
+                  options={[
+                    { value: "", label: "No project" },
+                    ...projects.map((p) => ({
+                      value: p.id,
+                      label: p.name || "Untitled project",
+                    })),
+                  ]}
+                />
+                <label className="form-label" htmlFor="job-editor-start">
+                  Scheduled start
+                </label>
+                <input
+                  id="job-editor-start"
+                  className="input-field"
+                  type="datetime-local"
+                  value={jobScheduledStart}
+                  onChange={(e) => setJobScheduledStart(e.target.value)}
+                />
+                <label className="form-label" htmlFor="job-editor-end">
+                  Scheduled end
+                </label>
+                <input
+                  id="job-editor-end"
+                  className="input-field"
+                  type="datetime-local"
+                  value={jobScheduledEnd}
+                  onChange={(e) => setJobScheduledEnd(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="billing-modal-actions">
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={savingJob}
+                onClick={() => setJobEditorOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={savingJob}
+                onClick={() => void saveJobEditor()}
+              >
+                {savingJob ? "Saving…" : "Save"}
+              </button>
             </div>
           </div>
         </div>
       )}
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
         <table
           className="invoice-table"
           style={{ margin: 0, width: "100%", borderCollapse: "collapse" }}
@@ -272,6 +584,7 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
                 JOB TITLE
               </th>
               <th
+                className="hide-on-mobile"
                 style={{
                   padding: "16px 8px",
                   fontSize: "11px",
@@ -283,6 +596,7 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
                 LOCATION
               </th>
               <th
+                className="hide-on-mobile"
                 style={{
                   padding: "16px 8px",
                   fontSize: "11px",
@@ -393,7 +707,7 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: "16px 8px" }}>
+                  <td className="hide-on-mobile" style={{ padding: "16px 8px" }}>
                     <span
                       style={{
                         fontWeight: 600,
@@ -404,7 +718,7 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
                       {job.location ?? "—"}
                     </span>
                   </td>
-                  <td style={{ padding: "16px 8px" }}>
+                  <td className="hide-on-mobile" style={{ padding: "16px 8px" }}>
                     <span style={{ fontSize: "13px", color: "#64748b" }}>
                       {formatDate(job.scheduled_start)}
                       {job.scheduled_end
@@ -434,37 +748,50 @@ export default function JobsPage({ workspaceId }: JobsPageProps) {
                       paddingRight: "20px",
                       paddingBlock: "16px",
                     }}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <button
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#64748b",
-                        cursor: "pointer",
-                        padding: "6px",
-                        borderRadius: "6px",
-                      }}
-                      className="hover-bg"
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
+                    {isPlatformAdmin ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => openEditEditor(job)}
                       >
-                        <circle cx="12" cy="12" r="1" />
-                        <circle cx="12" cy="5" r="1" />
-                        <circle cx="12" cy="19" r="1" />
-                      </svg>
-                    </button>
+                        Edit
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#64748b",
+                          cursor: "default",
+                          padding: "6px",
+                          borderRadius: "6px",
+                        }}
+                        aria-hidden
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <circle cx="12" cy="12" r="1" />
+                          <circle cx="12" cy="5" r="1" />
+                          <circle cx="12" cy="19" r="1" />
+                        </svg>
+                      </button>
+                    )}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
 
         {filtered.length === 0 && (
           <div

@@ -189,9 +189,7 @@ export default function PersonalDashboardPage({
           style={{ borderLeftColor: "var(--accent)" }}
         >
           <span className="invoice-summary-label">Open Projects</span>
-          <span className="invoice-summary-value" style={{ fontSize: "32px" }}>
-            {activeProjectsCount}
-          </span>
+          <span className="invoice-summary-value">{activeProjectsCount}</span>
           <p
             style={{
               margin: "4px 0 0 0",
@@ -208,7 +206,7 @@ export default function PersonalDashboardPage({
           style={{ borderLeftColor: "#f59e0b" }}
         >
           <span className="invoice-summary-label">Pending Invoices</span>
-          <span className="invoice-summary-value" style={{ fontSize: "32px" }}>
+          <span className="invoice-summary-value">
             ${pendingInvoicesTotal.toLocaleString()}
           </span>
           <p
@@ -227,10 +225,7 @@ export default function PersonalDashboardPage({
           style={{ borderLeftColor: "#22c55e" }}
         >
           <span className="invoice-summary-label">Next Calibration</span>
-          <span
-            className="invoice-summary-value"
-            style={{ fontSize: "32px", color: "var(--text-h)" }}
-          >
+          <span className="invoice-summary-value" style={{ color: "var(--text-h)" }}>
             {nextCalibrationDays == null ? "-- Days" : `${nextCalibrationDays} Days`}
           </span>
           <p
@@ -245,13 +240,7 @@ export default function PersonalDashboardPage({
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 340px)",
-          gap: "24px",
-        }}
-      >
+      <div className="project-dashboard-unified-grid">
         <div style={{ display: "flex", flexDirection: "column", gap: "24px", minWidth: 0 }}>
           <div className="card">
             <div

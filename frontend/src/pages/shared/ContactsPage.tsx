@@ -140,32 +140,32 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
       </header>
 
       {/* Directory Metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-        <div className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <div className="invoice-summary-row">
+        <div className="invoice-summary-card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+           <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--accent-bg)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
            </div>
            <div>
-             <h3 style={{ margin: 0, fontSize: '24px', color: 'var(--text-h)', fontWeight: 700 }}>{totalContacts}</h3>
-             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>Total Contacts</p>
+             <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-h)', fontWeight: 700 }}>{totalContacts}</h3>
+             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text)', fontWeight: 500 }}>Total Contacts</p>
            </div>
         </div>
-        <div className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div className="invoice-summary-card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+           <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
            </div>
            <div>
-             <h3 style={{ margin: 0, fontSize: '24px', color: 'var(--text-h)', fontWeight: 700 }}>{activeClients}</h3>
-             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>Active Clients</p>
+             <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-h)', fontWeight: 700 }}>{activeClients}</h3>
+             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text)', fontWeight: 500 }}>Active Clients</p>
            </div>
         </div>
-        <div className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f3e8ff', color: '#7e22ce', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <div className="invoice-summary-card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+           <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f3e8ff', color: '#7e22ce', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
            </div>
            <div>
-             <h3 style={{ margin: 0, fontSize: '24px', color: 'var(--text-h)', fontWeight: 700 }}>{networkPartners}</h3>
-             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>Network Partners</p>
+             <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-h)', fontWeight: 700 }}>{networkPartners}</h3>
+             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text)', fontWeight: 500 }}>Network Partners</p>
            </div>
         </div>
       </div>
@@ -173,8 +173,8 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
       <div className="card" style={{ padding: 0 }}>
 
         {/* Table Controls */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', gap: '10px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', minWidth: 0 }}>
             {['All', 'Client', 'Subcontractor', 'Vendor', 'Government'].map(tab => (
               <button
                 key={tab}
@@ -183,12 +183,14 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
                   background: activeFilter === tab ? 'var(--text-h)' : 'transparent',
                   color: activeFilter === tab ? '#fff' : 'var(--text)',
                   border: 'none',
-                  padding: '6px 14px',
+                  padding: '6px 12px',
                   borderRadius: '20px',
                   fontSize: '13px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'background 0.2s'
+                  transition: 'background 0.2s',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
                 }}
               >
                 {tab}
@@ -196,11 +198,11 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
             ))}
           </div>
 
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: '280px' }}>
              <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text)' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
              <input
                type="text"
-               placeholder="Search people or companies..."
+               placeholder="Search..."
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
                className="input-field"
@@ -208,21 +210,22 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
                  paddingLeft: '32px',
                  height: '34px',
                  fontSize: '13px',
-                 width: '240px'
+                 width: '100%'
                }}
              />
            </div>
         </div>
 
         {/* Directory Table */}
-        <table className="invoice-table" style={{ margin: 0 }}>
+        <div style={{ overflowX: 'auto' }}>
+        <table className="invoice-table" style={{ margin: 0, minWidth: '600px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
               <th style={{ padding: '16px 20px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>Contact Person</th>
               <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>Company & Role</th>
-              <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>Category</th>
+              <th className="hide-on-mobile" style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>Category</th>
               <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>Contact Details</th>
-              <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>Last Interaction</th>
+              <th className="hide-on-mobile" style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>Last Interaction</th>
               <th style={{ padding: '16px 20px', width: '40px' }}></th>
             </tr>
           </thead>
@@ -253,7 +256,7 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
                       <span style={{ fontSize: '13px', color: '#475569' }}>{c.title}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '16px 8px' }}>
+                  <td className="hide-on-mobile" style={{ padding: '16px 8px' }}>
                     <span style={{
                       background: badge.bg,
                       color: badge.color,
@@ -282,7 +285,7 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
                       )}
                     </div>
                   </td>
-                  <td style={{ padding: '16px 8px' }}>
+                  <td className="hide-on-mobile" style={{ padding: '16px 8px' }}>
                     <span style={{ fontSize: '13px', color: '#475569' }}>{c.lastContact}</span>
                   </td>
                   <td style={{ textAlign: 'right', paddingRight: '20px', paddingBlock: '16px' }}>
@@ -300,6 +303,7 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
             })}
           </tbody>
         </table>
+        </div>
 
         {filtered.length === 0 && (
           <div style={{ padding: '64px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -322,7 +326,7 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
             </div>
 
             <form onSubmit={handleCreate}>
-              <div className="invoices-create-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '20px' }}>
+              <div className="invoices-create-grid responsive-grid-2" style={{ padding: '20px' }}>
                 <input
                   className="input-field"
                   placeholder="Full name *"

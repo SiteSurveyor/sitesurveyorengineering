@@ -103,6 +103,7 @@ jobs:
           mkdir -p "$RES_DIR/mipmap-xxhdpi"
           mkdir -p "$RES_DIR/mipmap-xxxhdpi"
           cp -f backend/icons/android/mipmap-anydpi-v26/ic_launcher.xml "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml"
+          cp -f backend/icons/android/mipmap-anydpi-v26/ic_launcher_round.xml "$RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml"
           cp -f backend/icons/android/values/ic_launcher_background.xml "$RES_DIR/values/ic_launcher_background.xml"
           cp -f backend/icons/android/mipmap-hdpi/ic_launcher.png "$RES_DIR/mipmap-hdpi/ic_launcher.png"
           cp -f backend/icons/android/mipmap-hdpi/ic_launcher_round.png "$RES_DIR/mipmap-hdpi/ic_launcher_round.png"

@@ -1,4 +1,7 @@
 export type AccountType = "personal" | "business";
+
+/** Stored at signup (`profiles.auth_signup_account_type`); drives shell routing. */
+export type SignupAccountType = "personal" | "business" | "platform_admin";
 export type LicenseTier = "free" | "pro" | "enterprise";
 export type LicenseStatus =
   | "trialing"
@@ -23,7 +26,10 @@ export type WorkspaceView =
   | "invoices"
   | "billing"
   | "contacts"
-  | "timeTracking";
+  | "timeTracking"
+  | "admin_overview"
+  | "admin_licenses"
+  | "admin_activity";
 
 export interface UiUser {
   workspaceId: string;
@@ -31,8 +37,10 @@ export interface UiUser {
   email: string;
   company: string;
   accountType: AccountType;
+  signupAccountType: SignupAccountType | null;
   licenseTier: LicenseTier;
   licenseStatus: LicenseStatus;
+  isPlatformAdmin: boolean;
 }
 
 export interface WorkspaceNavItem {

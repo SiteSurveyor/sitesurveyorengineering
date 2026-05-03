@@ -13,6 +13,8 @@ interface WorkspaceShellProps {
   activeView: WorkspaceView;
   navGroups: WorkspaceNavGroup[];
   accountLabel: string;
+  /** Shown below the top bar (e.g. pending platform operator grant). */
+  noticeBanner?: React.ReactNode;
   isProjectFullscreen?: boolean;
   onChangeView: (view: WorkspaceView) => void;
   onLogout: () => Promise<void> | void;
@@ -24,6 +26,7 @@ interface WorkspaceTopbarProps {
   accountLabel: string;
   onProfile: () => void;
   onLogout: () => Promise<void> | void;
+  onToggleMobileMenu: () => void;
 }
 
 interface WorkspaceSidebarProps {
@@ -298,6 +301,60 @@ function AssetIcon() {
   );
 }
 
+function ShieldIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function AdminGridIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+    </svg>
+  );
+}
+
+function ActivityIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
+
 function ChevronCollapseIcon({ collapsed }: { collapsed: boolean }) {
   return (
     <svg
@@ -443,6 +500,12 @@ function getNavIcon(icon: string) {
       return <ShoppingIcon />;
     case "asset":
       return <AssetIcon />;
+    case "shield":
+      return <ShieldIcon />;
+    case "admin-grid":
+      return <AdminGridIcon />;
+    case "activity":
+      return <ActivityIcon />;
     default:
       return <DashboardIcon />;
   }
@@ -453,6 +516,7 @@ function WorkspaceTopbar({
   accountLabel,
   onProfile,
   onLogout,
+  onToggleMobileMenu,
 }: WorkspaceTopbarProps) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -474,6 +538,13 @@ function WorkspaceTopbar({
     <>
       <header className="hub-topbar">
         <div className="hub-topbar-left">
+          <button className="hub-mobile-menu-btn" onClick={onToggleMobileMenu} title="Toggle Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
           <img src="/logo.svg" alt="SiteSurveyor" className="hub-logo" />
           <span className="hub-brand">SiteSurveyor for Engineers</span>
         </div>
@@ -669,12 +740,14 @@ export default function WorkspaceShell({
   activeView,
   navGroups,
   accountLabel,
+  noticeBanner,
   isProjectFullscreen = false,
   onChangeView,
   onLogout,
   children,
 }: WorkspaceShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const shouldHideGlobalChrome =
     activeView === "projects" && isProjectFullscreen;
@@ -687,10 +760,42 @@ export default function WorkspaceShell({
           accountLabel={accountLabel}
           onProfile={() => onChangeView("profile")}
           onLogout={onLogout}
+          onToggleMobileMenu={() => setMobileMenuOpen((open) => !open)}
         />
       )}
 
+      {!shouldHideGlobalChrome && noticeBanner ? (
+        <div className="hub-top-notice">{noticeBanner}</div>
+      ) : null}
+
       <div className="hub-workspace">
+        {mobileMenuOpen && !shouldHideGlobalChrome && (
+          <div className="hub-mobile-nav-overlay" onClick={() => setMobileMenuOpen(false)}>
+            <div className="hub-mobile-nav-dropdown" onClick={(e) => e.stopPropagation()}>
+              <nav className="hub-sidebar-nav">
+                {navGroups.map((group, groupIndex) => (
+                  <div className="hub-nav-group" key={`${group.label ?? "group"}-${groupIndex}`}>
+                    {group.label ? <span className="hub-nav-label">{group.label}</span> : null}
+                    {group.items.map((item) => (
+                      <button
+                        key={item.view}
+                        className={`hub-side-tab ${activeView === item.view ? "active" : ""}`}
+                        onClick={() => {
+                          onChangeView(item.view);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        {getNavIcon(item.icon)}
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </nav>
+            </div>
+          </div>
+        )}
+
         {!shouldHideGlobalChrome && (
           <WorkspaceSidebar
             navGroups={navGroups}

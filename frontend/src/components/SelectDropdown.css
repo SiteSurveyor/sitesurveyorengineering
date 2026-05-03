@@ -75,6 +75,19 @@
   white-space: nowrap;
 }
 
+@media (max-width: 768px) {
+  .select-dropdown-menu {
+    max-height: min(240px, 45vh);
+  }
+
+  .select-dropdown-item {
+    padding: 11px 14px;
+    min-height: 44px;
+    box-sizing: border-box;
+    align-items: center;
+  }
+}
+
 .select-dropdown-item:hover {
   background: var(--surface-muted, #f8fafc);
   color: var(--text-h);

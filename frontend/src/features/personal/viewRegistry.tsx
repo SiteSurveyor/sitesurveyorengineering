@@ -1,4 +1,7 @@
 import type { UiUser, WorkspaceView } from "../workspace/types";
+import AdminActivityPage from "../../pages/admin/AdminActivityPage";
+import AdminLicensesPage from "../../pages/admin/AdminLicensesPage";
+import AdminOverviewPage from "../../pages/admin/AdminOverviewPage";
 import PersonalDashboardPage from "../../pages/personal/PersonalDashboardPage";
 import SchedulePage from "../../pages/personal/SchedulePage";
 import AssetManagementPage from "../../pages/shared/AssetManagementPage";
@@ -58,22 +61,51 @@ export function renderPersonalView(
       return <InvoicesPage workspaceId={user.workspaceId} />;
 
     case "billing":
-      return <BillingPage workspaceId={user.workspaceId} />;
+      return (
+        <BillingPage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
 
     case "contacts":
       return <ContactsPage workspaceId={user.workspaceId} />;
 
     case "jobs":
-      return <JobsPage workspaceId={user.workspaceId} />;
+      return (
+        <JobsPage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
 
     case "marketplace":
-      return <MarketplacePage workspaceId={user.workspaceId} />;
+      return (
+        <MarketplacePage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
 
     case "assets":
       return <AssetManagementPage workspaceId={user.workspaceId} />;
 
     case "professionals":
-      return <ProfessionalsPage workspaceId={user.workspaceId} />;
+      return (
+        <ProfessionalsPage
+          workspaceId={user.workspaceId}
+          isPlatformAdmin={user.isPlatformAdmin}
+        />
+      );
+
+    case "admin_overview":
+      return <AdminOverviewPage isPlatformAdmin={user.isPlatformAdmin} />;
+
+    case "admin_licenses":
+      return <AdminLicensesPage isPlatformAdmin={user.isPlatformAdmin} />;
+
+    case "admin_activity":
+      return <AdminActivityPage isPlatformAdmin={user.isPlatformAdmin} />;
 
     case "profile":
     default:

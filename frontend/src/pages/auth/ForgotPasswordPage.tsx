@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatAuthUserFacingError } from "../../lib/auth/auth-errors.ts";
 import { requestPasswordReset } from "../../lib/auth/session.ts";
 import "../../styles/auth.css";
 
@@ -32,9 +33,10 @@ export default function ForgotPasswordPage({
       );
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to send reset link. Please try again.",
+        formatAuthUserFacingError(
+          err,
+          "Unable to send reset link. Please try again.",
+        ),
       );
     } finally {
       setIsSubmitting(false);

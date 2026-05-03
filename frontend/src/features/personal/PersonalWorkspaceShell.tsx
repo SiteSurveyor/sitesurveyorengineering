@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import WorkspaceShell from "../../components/workspace/WorkspaceShell";
-import { getAccessibleView, getAccountTypeLabel } from "../workspace/account";
+import { platformAdminNavGroup } from "../admin/adminNav.ts";
+import {
+  getAccessibleView,
+  getWorkspaceShellAccountLabel,
+} from "../workspace/account";
 import { personalNavGroups } from "./navigation";
 import { renderPersonalView } from "./viewRegistry";
 import type { UiUser, WorkspaceView } from "../workspace/types";
@@ -28,8 +32,9 @@ export default function PersonalWorkspaceShell({
         currentView,
         user.licenseTier,
         user.licenseStatus,
+        user.isPlatformAdmin,
       ),
-    [currentView, user.licenseStatus, user.licenseTier],
+    [currentView, user.isPlatformAdmin, user.licenseStatus, user.licenseTier],
   );
 
   const navGroups = useMemo(() => {
@@ -42,16 +47,32 @@ export default function PersonalWorkspaceShell({
             view,
             user.licenseTier,
             user.licenseStatus,
+            user.isPlatformAdmin,
           ) === view,
         ),
     );
-    return personalNavGroups
+    const base = personalNavGroups
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => allowed.has(item.view)),
       }))
       .filter((group) => group.items.length > 0);
-  }, [user.licenseStatus, user.licenseTier]);
+
+    if (!user.isPlatformAdmin) return base;
+
+    const adminItems = platformAdminNavGroup.items.filter(
+      (item) =>
+        getAccessibleView(
+          "personal",
+          item.view,
+          user.licenseTier,
+          user.licenseStatus,
+          user.isPlatformAdmin,
+        ) === item.view,
+    );
+    if (adminItems.length === 0) return base;
+    return [...base, { ...platformAdminNavGroup, items: adminItems }];
+  }, [user.isPlatformAdmin, user.licenseStatus, user.licenseTier]);
 
   useEffect(() => {
     localStorage.setItem(storageKey, activeView);
@@ -62,7 +83,7 @@ export default function PersonalWorkspaceShell({
       user={user}
       activeView={activeView}
       navGroups={navGroups}
-      accountLabel={getAccountTypeLabel("personal")}
+      accountLabel={getWorkspaceShellAccountLabel(user)}
       isProjectFullscreen={isProjectFullscreen}
       onChangeView={setCurrentView}
       onLogout={onLogout}

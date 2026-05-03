@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import '../../styles/project-hub.css'
 import '../../styles/pages.css'
 import { listProjects, createProject, updateProject, archiveProject, unarchiveProject, deleteProject, listProjectMembers, listProjectActivities, createProjectActivity, deleteProjectActivity, type ProjectActivity } from '../../lib/repositories/projects.ts'
@@ -9,7 +9,11 @@ import { mapProjectRowToHubProject, type UiHubProject } from '../../lib/mappers.
 import { inviteWorkspaceMember } from '../../lib/repositories/invitations.ts'
 import { getMyWorkspaceMembership, getWorkspaceById } from '../../lib/repositories/workspaces.ts'
 import { canAccessFeatureByLicense, canManageProjects, canManageTeam } from '../../lib/permissions.ts'
+import { getWorkspaceUsage, type WorkspaceUsageSnapshot } from '../../lib/repositories/workspaceUsage.ts'
 import type { LicenseStatus, LicenseTier } from '../../features/workspace/types.ts'
+import { ProjectDashboard } from '../../features/projects/components/ProjectDashboard.tsx'
+import { ProjectSettings } from '../../features/projects/components/ProjectSettings.tsx'
+import { CadWorkspace } from '../../features/projects/components/CadWorkspace.tsx'
 
 export type HubProject = UiHubProject
 
@@ -67,86 +71,6 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   'Drafting & Outputs',
 ]
 
-const CAD_PRIMARY_TOOLS = ['Select', 'Line', 'Polyline', 'Offset', 'Trim', 'Extend', 'Move', 'Copy']
-const CAD_LAYERS = ['BOUNDARY', 'TOPO', 'CONTROL', 'ROAD_CENTERLINE', 'UTILITIES']
-const CAD_GRID_SIZE = 20
-
-interface CadLineEntity {
-  id: string
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-  layer: string
-}
-
-function CadToolIcon({ tool }: { tool: string }) {
-  const normalized = tool.toUpperCase()
-  if (normalized === 'SELECT') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M4 3l14 8-6 2-2 6-6-16z" />
-      </svg>
-    )
-  }
-  if (normalized === 'LINE') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <line x1="4" y1="20" x2="20" y2="4" />
-      </svg>
-    )
-  }
-  if (normalized === 'POLYLINE') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <polyline points="3,18 8,10 14,14 21,6" />
-      </svg>
-    )
-  }
-  if (normalized === 'OFFSET') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <line x1="4" y1="18" x2="18" y2="4" />
-        <line x1="8" y1="22" x2="22" y2="8" />
-      </svg>
-    )
-  }
-  if (normalized === 'TRIM') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <line x1="4" y1="20" x2="20" y2="4" />
-        <line x1="13" y1="13" x2="20" y2="20" />
-      </svg>
-    )
-  }
-  if (normalized === 'EXTEND') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <line x1="4" y1="20" x2="13" y2="11" />
-        <line x1="13" y1="11" x2="20" y2="4" />
-        <line x1="20" y1="4" x2="20" y2="11" />
-      </svg>
-    )
-  }
-  if (normalized === 'MOVE') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 2v20M2 12h20" />
-        <path d="M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3" />
-      </svg>
-    )
-  }
-  if (normalized === 'COPY') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="9" y="9" width="11" height="11" rx="2" />
-        <rect x="4" y="4" width="11" height="11" rx="2" />
-      </svg>
-    )
-  }
-  return null
-}
-
 const projectStatusColors: Record<string, { bg: string; color: string }> = {
   Active: { bg: '#dcfce7', color: '#15803d' },
   Completed: { bg: '#dbeafe', color: '#1d4ed8' },
@@ -171,30 +95,12 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
   const [assigningMember, setAssigningMember] = useState(false)
   const [myRole, setMyRole] = useState<'owner' | 'admin' | 'ops_manager' | 'finance' | 'sales' | 'technician' | 'viewer' | null>(null)
   const [workspaceType, setWorkspaceType] = useState<'personal' | 'business' | null>(null)
+  const [usage, setUsage] = useState<WorkspaceUsageSnapshot | null>(null)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
     return localStorage.getItem(ACTIVE_PROJECT_KEY) || null
   })
   const [activeProjectTab, setActiveProjectTab] = useState<'overview' | 'files' | 'team' | 'quotes' | 'invoices' | 'settings'>('overview')
   const [activeWorkspaceView, setActiveWorkspaceView] = useState<'project' | 'cad'>('project')
-  const [cadActiveCommand, setCadActiveCommand] = useState('LINE')
-  const [cadCommandInput, setCadCommandInput] = useState('')
-  const [cadZoomPercent, setCadZoomPercent] = useState(100)
-  const [cadSnapEnabled, setCadSnapEnabled] = useState(true)
-  const [cadOrthoEnabled, setCadOrthoEnabled] = useState(false)
-  const [cadCurrentLayer, setCadCurrentLayer] = useState(CAD_LAYERS[1])
-  const [cadViewportOffset, setCadViewportOffset] = useState({ x: 0, y: 0 })
-  const [cadLineEntities, setCadLineEntities] = useState<CadLineEntity[]>([])
-  const [cadSelectedLineId, setCadSelectedLineId] = useState<string | null>(null)
-  const [cadLineStart, setCadLineStart] = useState<{ x: number; y: number } | null>(null)
-  const [cadLinePreview, setCadLinePreview] = useState<{ x: number; y: number } | null>(null)
-  const [cadPanOrigin, setCadPanOrigin] = useState<{ x: number; y: number } | null>(null)
-  const [cadHistory, setCadHistory] = useState<CadLineEntity[][]>([])
-  const [cadLayerVisibility, setCadLayerVisibility] = useState<Record<string, boolean>>(() =>
-    CAD_LAYERS.reduce<Record<string, boolean>>((acc, layer) => {
-      acc[layer] = true
-      return acc
-    }, {}),
-  )
   const [editName, setEditName] = useState('')
   const [editClient, setEditClient] = useState('')
   const [editPhase, setEditPhase] = useState('')
@@ -222,6 +128,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
   const [saving, setSaving] = useState(false)
 
   const [projectSidebarCollapsed, setProjectSidebarCollapsed] = useState(false)
+  const [projectMobileMenuOpen, setProjectMobileMenuOpen] = useState(false)
   const [toolSearchQuery, setToolSearchQuery] = useState('')
   const [activeToolCategory, setActiveToolCategory] = useState<ToolFilter>('all')
   const [recentToolIds, setRecentToolIds] = useState<string[]>(() => {
@@ -235,7 +142,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
       return []
     }
   })
-  const cadCanvasRef = useRef<HTMLDivElement | null>(null)
+
 
   const fetchProjects = async () => {
     try {
@@ -265,12 +172,14 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
       )
       setProjects(mapped)
 
-      const [membership, workspace] = await Promise.all([
+      const [membership, workspace, currentUsage] = await Promise.all([
         getMyWorkspaceMembership(workspaceId),
         getWorkspaceById(workspaceId),
+        getWorkspaceUsage(workspaceId),
       ])
       setMyRole((membership?.role ?? null) as typeof myRole)
       setWorkspaceType(workspace?.type ?? null)
+      setUsage(currentUsage)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load projects.')
     } finally {
@@ -358,6 +267,14 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
       tools: filteredTools.filter(tool => tool.category === category),
     })).filter(group => group.tools.length > 0)
   }, [filteredTools])
+
+  const handleOpenNewProject = () => {
+    if (usage && usage.project_cap !== null && usage.projects_used >= usage.project_cap) {
+      setNotice({ type: 'info', message: `Project limit reached (${usage.projects_used}/${usage.project_cap}). Please upgrade your license to create more projects.` })
+      return
+    }
+    setShowNewModal(true)
+  }
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -544,6 +461,10 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
 
   const openCadWorkspace = async () => {
     if (!activeProjectId) return
+    if (window.innerWidth < 768) {
+      setNotice({ type: 'info', message: 'Surveyor CAD requires a larger screen. Please use a tablet or desktop.' })
+      return
+    }
     if (!canUseCad) {
       setNotice({ type: 'info', message: 'Surveyor CAD is available on Pro and Enterprise plans only.' })
       return
@@ -579,177 +500,12 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
     { label: 'Actions Run', value: `${activities.filter(a => a.activity_type === 'action').length}`, sub: 'Successful tool executions' },
   ] : []
 
-  const toggleCadLayer = (layerName: string) => {
-    setCadLayerVisibility(prev => ({
-      ...prev,
-      [layerName]: !prev[layerName],
-    }))
-  }
-
-  const runCadCommand = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!cadCommandInput.trim()) return
-    const command = cadCommandInput.trim().toUpperCase()
-    setCadCommandInput('')
-    if (command === 'UNDO') {
-      setCadHistory(prev => {
-        if (prev.length === 0) return prev
-        const next = [...prev]
-        const restore = next.pop() ?? []
-        setCadLineEntities(restore)
-        return next
-      })
-    } else if (command === 'CLEAR') {
-      setCadHistory(prev => [...prev, cadLineEntities])
-      setCadLineEntities([])
-      setCadSelectedLineId(null)
-      setCadLineStart(null)
-      setCadLinePreview(null)
-    } else if (command === 'ZOOMIN') {
-      setCadZoomPercent(prev => Math.min(300, prev + 25))
-    } else if (command === 'ZOOMOUT') {
-      setCadZoomPercent(prev => Math.max(25, prev - 25))
-    } else if (['LINE', 'SELECT', 'PAN'].includes(command)) {
-      setCadActiveCommand(command)
-      setCadLineStart(null)
-      setCadLinePreview(null)
-    }
-    if (!activeProjectId) return
-    await handleQuickAction(`CAD Command: ${command}`)
-  }
-
   useEffect(() => {
     if (activeWorkspaceView === 'cad' && !canUseCad) {
       setActiveWorkspaceView('project')
       setNotice({ type: 'info', message: 'Your current plan does not allow Surveyor CAD. Upgrade to Pro or Enterprise.' })
     }
   }, [activeWorkspaceView, canUseCad])
-
-  const cadZoomScale = cadZoomPercent / 100
-
-  const getCadWorldPoint = (clientX: number, clientY: number) => {
-    const rect = cadCanvasRef.current?.getBoundingClientRect()
-    if (!rect) return null
-    return {
-      x: (clientX - rect.left - cadViewportOffset.x) / cadZoomScale,
-      y: (clientY - rect.top - cadViewportOffset.y) / cadZoomScale,
-    }
-  }
-
-  const applyCadSnapAndOrtho = (point: { x: number; y: number }) => {
-    const snapped = cadSnapEnabled
-      ? {
-          x: Math.round(point.x / CAD_GRID_SIZE) * CAD_GRID_SIZE,
-          y: Math.round(point.y / CAD_GRID_SIZE) * CAD_GRID_SIZE,
-        }
-      : point
-
-    if (!cadLineStart || !cadOrthoEnabled) return snapped
-    const dx = snapped.x - cadLineStart.x
-    const dy = snapped.y - cadLineStart.y
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      return { x: snapped.x, y: cadLineStart.y }
-    }
-    return { x: cadLineStart.x, y: snapped.y }
-  }
-
-  const pointToSegmentDistance = (
-    point: { x: number; y: number },
-    line: CadLineEntity,
-  ) => {
-    const { x1, y1, x2, y2 } = line
-    const dx = x2 - x1
-    const dy = y2 - y1
-    if (dx === 0 && dy === 0) return Math.hypot(point.x - x1, point.y - y1)
-    const t = Math.max(0, Math.min(1, ((point.x - x1) * dx + (point.y - y1) * dy) / (dx * dx + dy * dy)))
-    const projX = x1 + t * dx
-    const projY = y1 + t * dy
-    return Math.hypot(point.x - projX, point.y - projY)
-  }
-
-  const pickCadLineAtPoint = (point: { x: number; y: number }): CadLineEntity | null => {
-    const visibleLines = cadLineEntities.filter(line => cadLayerVisibility[line.layer])
-    const tolerance = 8 / cadZoomScale
-    let best: CadLineEntity | null = null
-    let bestDist = Number.POSITIVE_INFINITY
-    visibleLines.forEach(line => {
-      const dist = pointToSegmentDistance(point, line)
-      if (dist <= tolerance && dist < bestDist) {
-        bestDist = dist
-        best = line
-      }
-    })
-    return best
-  }
-
-  const handleCadPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (cadActiveCommand === 'PAN' || e.button === 1) {
-      setCadPanOrigin({
-        x: e.clientX - cadViewportOffset.x,
-        y: e.clientY - cadViewportOffset.y,
-      })
-      return
-    }
-
-    const world = getCadWorldPoint(e.clientX, e.clientY)
-    if (!world) return
-    const point = applyCadSnapAndOrtho(world)
-
-    if (cadActiveCommand === 'SELECT') {
-      const picked: CadLineEntity | null = pickCadLineAtPoint(point)
-      setCadSelectedLineId(picked?.id ?? null)
-      return
-    }
-
-    if (cadActiveCommand === 'LINE') {
-      if (!cadLineStart) {
-        setCadLineStart(point)
-        setCadLinePreview(point)
-      } else {
-        const newLine: CadLineEntity = {
-          id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-          x1: cadLineStart.x,
-          y1: cadLineStart.y,
-          x2: point.x,
-          y2: point.y,
-          layer: cadCurrentLayer,
-        }
-        setCadHistory(prev => [...prev, cadLineEntities])
-        setCadLineEntities(prev => [...prev, newLine])
-        setCadLineStart(null)
-        setCadLinePreview(null)
-        setCadSelectedLineId(newLine.id)
-      }
-    }
-  }
-
-  const handleCadPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (cadPanOrigin) {
-      setCadViewportOffset({
-        x: e.clientX - cadPanOrigin.x,
-        y: e.clientY - cadPanOrigin.y,
-      })
-      return
-    }
-
-    if (cadActiveCommand === 'LINE' && cadLineStart) {
-      const world = getCadWorldPoint(e.clientX, e.clientY)
-      if (!world) return
-      setCadLinePreview(applyCadSnapAndOrtho(world))
-    }
-  }
-
-  const handleCadPointerUp = () => {
-    setCadPanOrigin(null)
-  }
-
-  const handleCadWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setCadZoomPercent(prev => {
-      if (e.deltaY < 0) return Math.min(300, prev + 10)
-      return Math.max(25, prev - 10)
-    })
-  }
 
   const recentActivities = activities.slice(0, 12)
   const recentActivitySections = useMemo(() => {
@@ -813,7 +569,10 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
 
       {activeProject ? (
         <div className={`project-fullscreen-shell ${projectSidebarCollapsed ? 'collapsed' : ''}`}>
-          <aside className="project-fullscreen-sidebar">
+          {projectMobileMenuOpen && (
+            <div className="project-mobile-overlay" onClick={() => setProjectMobileMenuOpen(false)} />
+          )}
+          <aside className={`project-fullscreen-sidebar ${projectMobileMenuOpen ? 'mobile-open' : ''}`}>
             <div className="project-fullscreen-sidebar-head">
               <button className="btn btn-outline btn-sm project-workspace-back" onClick={exitProject} title="Back to Projects">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -825,27 +584,27 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
               </div>
             </div>
             <nav className="project-fullscreen-nav">
-              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveProjectTab('overview')}>
+              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveProjectTab('overview'); setProjectMobileMenuOpen(false); }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                 <span className="pf-nav-label">Overview</span>
               </button>
-              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'files' ? 'active' : ''}`} onClick={() => setActiveProjectTab('files')}>
+              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'files' ? 'active' : ''}`} onClick={() => { setActiveProjectTab('files'); setProjectMobileMenuOpen(false); }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                 <span className="pf-nav-label">Survey Setup</span>
               </button>
-              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'team' ? 'active' : ''}`} onClick={() => setActiveProjectTab('team')}>
+              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'team' ? 'active' : ''}`} onClick={() => { setActiveProjectTab('team'); setProjectMobileMenuOpen(false); }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
                 <span className="pf-nav-label">Geodesy &amp; Computation</span>
               </button>
-              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'quotes' ? 'active' : ''}`} onClick={() => setActiveProjectTab('quotes')}>
+              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'quotes' ? 'active' : ''}`} onClick={() => { setActiveProjectTab('quotes'); setProjectMobileMenuOpen(false); }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
                 <span className="pf-nav-label">Field Data</span>
               </button>
-              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'invoices' ? 'active' : ''}`} onClick={() => setActiveProjectTab('invoices')}>
+              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'invoices' ? 'active' : ''}`} onClick={() => { setActiveProjectTab('invoices'); setProjectMobileMenuOpen(false); }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 <span className="pf-nav-label">Drafting &amp; Outputs</span>
               </button>
-              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveProjectTab('settings')}>
+              <button className={`project-fullscreen-nav-btn ${activeProjectTab === 'settings' ? 'active' : ''}`} onClick={() => { setActiveProjectTab('settings'); setProjectMobileMenuOpen(false); }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 <span className="pf-nav-label">Project Settings</span>
               </button>
@@ -858,142 +617,23 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
 
           <div className="project-fullscreen-main">
             {activeWorkspaceView === 'cad' && (
-              <section className="cad-workspace-shell" aria-label="Surveyor CAD workspace">
-                <header className="cad-topbar">
-                  <div className="cad-topbar-left">
-                    <strong className="cad-title">Surveyor CAD</strong>
-                    <span className="cad-project-ref">{activeProject.id} · {activeProject.name}</span>
-                  </div>
-                  <div className="cad-topbar-actions">
-                    <button className="cad-chip-btn" type="button" onClick={() => setCadSnapEnabled(prev => !prev)}>
-                      SNAP {cadSnapEnabled ? 'ON' : 'OFF'}
-                    </button>
-                    <button className="cad-chip-btn" type="button" onClick={() => setCadOrthoEnabled(prev => !prev)}>
-                      ORTHO {cadOrthoEnabled ? 'ON' : 'OFF'}
-                    </button>
-                    <button className="btn btn-outline btn-sm" type="button" onClick={() => setCadZoomPercent(prev => Math.max(25, prev - 25))}>- Zoom</button>
-                    <button className="btn btn-outline btn-sm" type="button" onClick={() => setCadZoomPercent(prev => Math.min(300, prev + 25))}>+ Zoom</button>
-                    <button className="btn btn-primary btn-sm" type="button" onClick={exitCadWorkspace}>Exit CAD</button>
-                  </div>
-                </header>
-
-                <div className="cad-workspace-body">
-                  <aside className="cad-left-rail">
-                    <span className="cad-panel-title">Tools</span>
-                    <div className="cad-tool-list">
-                      {CAD_PRIMARY_TOOLS.map(tool => (
-                        <button
-                          key={tool}
-                          type="button"
-                          className={`cad-tool-btn ${cadActiveCommand === tool.toUpperCase() ? 'active' : ''}`}
-                          onClick={() => setCadActiveCommand(tool.toUpperCase())}
-                        >
-                          <CadToolIcon tool={tool} />
-                          <span>{tool}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </aside>
-
-                  <div className="cad-canvas-wrap" ref={cadCanvasRef}>
-                    <div
-                      className="cad-canvas-grid"
-                      onPointerDown={handleCadPointerDown}
-                      onPointerMove={handleCadPointerMove}
-                      onPointerUp={handleCadPointerUp}
-                      onPointerLeave={handleCadPointerUp}
-                      onWheel={handleCadWheel}
-                      style={{
-                        backgroundSize: `${CAD_GRID_SIZE * cadZoomScale}px ${CAD_GRID_SIZE * cadZoomScale}px`,
-                        backgroundPosition: `${cadViewportOffset.x}px ${cadViewportOffset.y}px`,
-                        cursor: cadActiveCommand === 'PAN' ? 'grab' : cadActiveCommand === 'LINE' ? 'crosshair' : 'default',
-                      }}
-                    >
-                      <div className="cad-canvas-overlay">
-                        <span>Model Space · {cadActiveCommand}</span>
-                        <span>{cadZoomPercent}% · {cadCurrentLayer}</span>
-                      </div>
-                      <svg className="cad-drawing-svg" aria-label="CAD drawing surface">
-                        <g transform={`translate(${cadViewportOffset.x} ${cadViewportOffset.y}) scale(${cadZoomScale})`}>
-                          {cadLineEntities
-                            .filter(line => cadLayerVisibility[line.layer])
-                            .map(line => (
-                              <line
-                                key={line.id}
-                                x1={line.x1}
-                                y1={line.y1}
-                                x2={line.x2}
-                                y2={line.y2}
-                                stroke={line.id === cadSelectedLineId ? '#fbbf24' : '#93c5fd'}
-                                strokeWidth={line.id === cadSelectedLineId ? 3 : 2}
-                              />
-                            ))}
-                          {cadLineStart && cadLinePreview && (
-                            <line
-                              x1={cadLineStart.x}
-                              y1={cadLineStart.y}
-                              x2={cadLinePreview.x}
-                              y2={cadLinePreview.y}
-                              stroke="#34d399"
-                              strokeWidth={1.8}
-                              strokeDasharray="6 6"
-                            />
-                          )}
-                        </g>
-                      </svg>
-                    </div>
-                    <form className="cad-command-bar" onSubmit={runCadCommand}>
-                      <label htmlFor="cad-command-input">Command</label>
-                      <input
-                        id="cad-command-input"
-                        className="input-field cad-command-input"
-                        placeholder="Type a command (LINE, OFFSET, TRIM...)"
-                        value={cadCommandInput}
-                        onChange={(e) => setCadCommandInput(e.target.value)}
-                      />
-                      <select className="input-field cad-layer-select" value={cadCurrentLayer} onChange={(e) => setCadCurrentLayer(e.target.value)}>
-                        {CAD_LAYERS.map(layer => (
-                          <option key={layer} value={layer}>{layer}</option>
-                        ))}
-                      </select>
-                      <button type="submit" className="btn btn-primary btn-sm">Run</button>
-                    </form>
-                  </div>
-
-                  <aside className="cad-right-panel">
-                    <div className="cad-panel-block">
-                      <span className="cad-panel-title">Properties</span>
-                      <div className="cad-prop-list">
-                        <div><span>Active Cmd</span><strong>{cadActiveCommand}</strong></div>
-                        <div><span>Layer</span><strong>{cadCurrentLayer}</strong></div>
-                        <div><span>Units</span><strong>meters</strong></div>
-                        <div><span>Zoom</span><strong>{cadZoomPercent}%</strong></div>
-                        <div><span>Entities</span><strong>{cadLineEntities.length}</strong></div>
-                      </div>
-                    </div>
-                    <div className="cad-panel-block">
-                      <span className="cad-panel-title">Layers</span>
-                      <div className="cad-layer-list">
-                        {CAD_LAYERS.map(layer => (
-                          <label key={layer} className="cad-layer-row">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(cadLayerVisibility[layer])}
-                              onChange={() => toggleCadLayer(layer)}
-                            />
-                            <span>{layer}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </aside>
-                </div>
-              </section>
+              <CadWorkspace
+                activeProject={activeProject}
+                setProjectMobileMenuOpen={setProjectMobileMenuOpen}
+                exitCadWorkspace={exitCadWorkspace}
+              />
             )}
 
             <div className="project-workspace" style={activeWorkspaceView === 'cad' ? { display: 'none' } : undefined}>
               <header className="project-workspace-header">
                 <div className="project-workspace-title">
+                  <button className="hub-mobile-menu-btn" style={{ marginRight: '8px' }} onClick={() => setProjectMobileMenuOpen(true)}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                  </button>
                   <h1 className="project-workspace-name">{activeProject.name}</h1>
                   <div className="project-workspace-sub">
                     <code className="ast-serial">{activeProject.id}</code>
@@ -1015,311 +655,56 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
               </header>
 
               {activeProjectTab === 'overview' ? (
-                <div className="pd-unified-col">
-                  <div className="project-dashboard-kpi-grid">
-                    {kpiData.map(kpi => (
-                      <article key={kpi.label} className="project-dashboard-kpi-card">
-                        <span className="project-dashboard-kpi-label">{kpi.label}</span>
-                        <strong className="project-dashboard-kpi-value">{kpi.value}</strong>
-                        <span className="project-dashboard-kpi-sub">{kpi.sub}</span>
-                      </article>
-                    ))}
-                  </div>
-
-                  <section className="project-dashboard-card" style={{ marginTop: '16px' }}>
-                    <h3 className="project-dashboard-card-title">Quick Actions</h3>
-                    <div className="project-dashboard-actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-                      <button className="btn btn-primary btn-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => handleQuickAction('New Field Session')}>
-                        <span>New Field Session</span>
-                        <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '4px' }}>
-                          {activities.find(a => a.content.includes('Field Session')) ? 'Running' : 'Start'}
-                        </span>
-                      </button>
-                      <button className="btn btn-outline btn-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => handleQuickAction('Run Transformation')}>
-                        <span>Run Transformation</span>
-                        <span style={{ fontSize: '10px', background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: '4px' }}>
-                          {activities.filter(a => a.content.includes('Transformation')).length} runs
-                        </span>
-                      </button>
-                      <button className="btn btn-outline btn-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => handleQuickAction('Validate QA')}>
-                        <span>Validate QA</span>
-                        <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px' }}>
-                          {Math.max(0, 12 - activities.filter(a => a.content.includes('Validate')).length)} left
-                        </span>
-                      </button>
-                      <button className="btn btn-outline btn-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => handleQuickAction('Prepare Deliverable')}>
-                        <span>Prepare Deliverable</span>
-                        <span style={{ fontSize: '10px', background: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: '4px' }}>
-                          v1.{activities.filter(a => a.content.includes('Deliverable')).length}
-                        </span>
-                      </button>
-                    </div>
-                  </section>
-
-                  <section className="project-dashboard-card" style={{ marginTop: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '12px', flexWrap: 'wrap' }}>
-                      <h3 className="project-dashboard-card-title" style={{ margin: 0 }}>Activity Feed</h3>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span className="badge badge-blue">Notes {timelineSummary.notes}</span>
-                        <span className="badge badge-green">Actions {timelineSummary.actions}</span>
-                        <span className="badge badge-gray">System {timelineSummary.system}</span>
-                      </div>
-                    </div>
-                    <div className="project-dashboard-timeline">
-                      <form onSubmit={handleAddActivity} style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
-                        <input className="input-field" placeholder="Add a short update..." style={{ height: '36px', fontSize: '13px' }} value={newActivityText} onChange={e => setNewActivityText(e.target.value)} />
-                        <button type="submit" className="btn btn-primary btn-sm" disabled={submittingActivity || !newActivityText.trim()}>Add</button>
-                      </form>
-                      {recentActivities.length > 0 ? (
-                        <div style={{ display: 'grid', gap: '12px' }}>
-                          {recentActivitySections[overviewActivitySectionIndex] && (
-                            <section style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'var(--surface)' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <span className="badge badge-blue">Section {overviewActivitySectionIndex + 1}</span>
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  {recentActivitySections[overviewActivitySectionIndex].length} items
-                                </span>
-                                <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  {overviewActivitySectionIndex + 1} / {recentActivitySections.length}
-                                </span>
-                              </div>
-                              <div style={{ display: 'grid', gap: '10px' }}>
-                                {recentActivitySections[overviewActivitySectionIndex].map(log => {
-                                  const typeBadgeClass =
-                                    log.activity_type === 'system'
-                                      ? 'badge-blue'
-                                      : log.activity_type === 'action'
-                                        ? 'badge-green'
-                                        : 'badge-gray'
-                                  return (
-                                    <article key={log.id} className="project-feed-item">
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                        <span className={`badge ${typeBadgeClass}`}>{log.activity_type}</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                            {new Date(log.created_at).toLocaleDateString()} {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                          </span>
-                                          <button
-                                            type="button"
-                                            className="btn btn-outline btn-sm"
-                                            onClick={() => handleDeleteActivity(log.id)}
-                                            disabled={deletingActivityId === log.id}
-                                            style={{ padding: '2px 8px', lineHeight: 1.2 }}
-                                          >
-                                            {deletingActivityId === log.id ? '...' : 'Delete'}
-                                          </button>
-                                        </div>
-                                      </div>
-                                      <p style={{ margin: '8px 0 4px', fontSize: '13px', color: 'var(--text-h)', lineHeight: 1.45 }}>{log.content}</p>
-                                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{log.user_name}</span>
-                                    </article>
-                                  )
-                                })}
-                              </div>
-                            </section>
-                          )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                            <button
-                              type="button"
-                              className="btn btn-outline btn-sm"
-                              onClick={() => setOverviewActivitySectionIndex(prev => Math.max(0, prev - 1))}
-                              disabled={overviewActivitySectionIndex <= 0}
-                            >
-                              Previous
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-outline btn-sm"
-                              onClick={() => setOverviewActivitySectionIndex(prev => Math.min(recentActivitySections.length - 1, prev + 1))}
-                              disabled={overviewActivitySectionIndex >= recentActivitySections.length - 1}
-                            >
-                              Next
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ padding: '24px', textAlign: 'center', background: 'var(--surface-muted)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
-                          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>No activity yet. Add your first project update.</p>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                </div>
+                <ProjectDashboard
+                  kpiData={kpiData}
+                  activities={activities}
+                  timelineSummary={timelineSummary}
+                  recentActivities={recentActivities}
+                  recentActivitySections={recentActivitySections}
+                  overviewActivitySectionIndex={overviewActivitySectionIndex}
+                  setOverviewActivitySectionIndex={setOverviewActivitySectionIndex}
+                  newActivityText={newActivityText}
+                  setNewActivityText={setNewActivityText}
+                  submittingActivity={submittingActivity}
+                  deletingActivityId={deletingActivityId}
+                  handleAddActivity={handleAddActivity}
+                  handleQuickAction={handleQuickAction}
+                  handleDeleteActivity={handleDeleteActivity}
+                />
               ) : activeProjectTab === 'settings' ? (
-                  <div className="project-settings-container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '32px', alignItems: 'start' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                      <div className="card project-workspace-card" style={{ padding: '24px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                          <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-h)', margin: 0 }}>Project Information</h2>
-                          <button className="btn btn-primary btn-sm" onClick={handleUpdateProject} disabled={saving || !canEditProjects}>
-                            {saving ? 'Saving...' : 'Save Changes'}
-                          </button>
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: '16px' }}>
-                          <label className="form-label" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Project Name</label>
-                          <input type="text" className="input-field" value={editName} onChange={e => setEditName(e.target.value)} />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                          <div className="form-group">
-                            <label className="form-label" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Client / Organization</label>
-                            <input type="text" className="input-field" value={editClient} disabled style={{ opacity: 0.7, cursor: 'not-allowed' }} />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Phase</label>
-                            <select className="input-field" value={editPhase} onChange={e => setEditPhase(e.target.value)}>
-                              <option>Planning</option>
-                              <option>Field Execution</option>
-                              <option>Data Processing</option>
-                              <option>Drafting</option>
-                              <option>Quality Assurance</option>
-                              <option>Delivered</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                          <div className="form-group">
-                            <label className="form-label" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Datum / CRS</label>
-                            <input type="text" className="input-field" value={editDatum} onChange={e => setEditDatum(e.target.value)} />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Status</label>
-                            <select className="input-field" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                              <option>Draft</option>
-                              <option>Active</option>
-                              <option>On Hold</option>
-                              <option>Completed</option>
-                              <option>Archived</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Description / Scope of Work</label>
-                          <textarea className="input-field" style={{ minHeight: '100px' }} value={editDesc} onChange={e => setEditDesc(e.target.value)} />
-                        </div>
-                      </div>
-
-                      <div className="card project-workspace-card" style={{ padding: '24px' }}>
-                        <h2 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-h)', margin: 0, marginBottom: '16px' }}>Danger Zone</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {activeProject.status === 'Archived' ? (
-                            <>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid #dcfce7', background: '#f0fdf4', borderRadius: '8px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#166534' }}>Restore Project</span>
-                                  <span style={{ fontSize: '11px', color: '#15803d' }}>Make project active and editable again.</span>
-                                </div>
-                              <button className="btn btn-sm" style={{ background: '#22c55e', color: '#fff', border: 'none' }} onClick={() => handleUnarchiveProject(activeProject.dbId)} disabled={!canEditProjects}>Restore</button>
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid #fee2e2', background: '#fef2f2', borderRadius: '8px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#991b1b' }}>Permanent Delete</span>
-                                  <span style={{ fontSize: '11px', color: '#b91c1c' }}>Destroy all project data. This cannot be undone.</span>
-                                </div>
-                                <button className="btn btn-sm" style={{ background: '#dc2626', color: '#fff', border: 'none' }} onClick={() => { setSelectedProject(activeProject); setShowPermanentDeleteConfirm(true); }} disabled={!canEditProjects}>Delete</button>
-                              </div>
-                            </>
-                          ) : (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid #fee2e2', background: '#fef2f2', borderRadius: '8px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#991b1b' }}>Archive Project</span>
-                                <span style={{ fontSize: '11px', color: '#b91c1c' }}>Mark project as inactive and read-only.</span>
-                              </div>
-                              <button className="btn btn-sm" style={{ background: '#ef4444', color: '#fff', border: 'none' }} onClick={() => { setSelectedProject(activeProject); setShowDeleteConfirm(true); }} disabled={!canEditProjects}>Archive</button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                      <div className="card project-workspace-card" style={{ padding: '24px' }}>
-                        <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-h)', margin: 0, marginBottom: '20px' }}>Team Members</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {activeProject.members.map((member, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-muted)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-h)' }}>{member.name}</span>
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{member.role}</span>
-                              </div>
-                              <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: member.status === 'active' ? '#166534' : '#92400e' }}>{member.status}</span>
-                            </div>
-                          ))}
-                          <button className="btn btn-outline btn-sm" style={{ marginTop: '8px', width: '100%' }} onClick={() => setShowAssignModal(true)} disabled={!canInviteProjectMembers}>Assign New Member</button>
-                        </div>
-                      </div>
-
-                      <div className="card project-workspace-card" style={{ padding: '24px' }}>
-                        <h3 className="project-dashboard-card-title" style={{ margin: 0, marginBottom: '16px' }}>Project Activity Log</h3>
-                        <div className="project-dashboard-timeline" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                          <form onSubmit={handleAddActivity} style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
-                            <input className="input-field" placeholder="Add a log entry..." style={{ height: '36px', fontSize: '13px' }} value={newActivityText} onChange={e => setNewActivityText(e.target.value)} />
-                            <button type="submit" className="btn btn-primary btn-sm" disabled={submittingActivity || !newActivityText.trim()}>Log</button>
-                          </form>
-                          {activities.length > 0 && settingsActivitySections[settingsActivitySectionIndex] ? (
-                            <>
-                              <section style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'var(--surface)' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <span className="badge badge-blue">Section {settingsActivitySectionIndex + 1}</span>
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  {settingsActivitySections[settingsActivitySectionIndex].length} items
-                                </span>
-                                <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  {settingsActivitySectionIndex + 1} / {settingsActivitySections.length}
-                                </span>
-                              </div>
-                              <div style={{ display: 'grid', gap: '10px' }}>
-                                {settingsActivitySections[settingsActivitySectionIndex].map(log => (
-                                  <div key={log.id} className="project-dashboard-timeline-item" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                                      <span className="project-dashboard-timeline-dot" style={{ background: log.activity_type === 'system' ? '#3b82f6' : '#6366f1' }} />
-                                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '13px', color: 'var(--text-h)' }}>{log.content}</span>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{log.user_name} &bull; {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                      </div>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="btn btn-outline btn-sm"
-                                      onClick={() => handleDeleteActivity(log.id)}
-                                      disabled={deletingActivityId === log.id}
-                                      style={{ padding: '2px 8px', lineHeight: 1.2 }}
-                                    >
-                                      {deletingActivityId === log.id ? '...' : 'Delete'}
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                              </section>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-outline btn-sm"
-                                  onClick={() => setSettingsActivitySectionIndex(prev => Math.max(0, prev - 1))}
-                                  disabled={settingsActivitySectionIndex <= 0}
-                                >
-                                  Previous
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-outline btn-sm"
-                                  onClick={() => setSettingsActivitySectionIndex(prev => Math.min(settingsActivitySections.length - 1, prev + 1))}
-                                  disabled={settingsActivitySectionIndex >= settingsActivitySections.length - 1}
-                                >
-                                  Next
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px' }}>No activity logged yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <ProjectSettings
+                  activeProject={activeProject}
+                  editName={editName}
+                  setEditName={setEditName}
+                  editClient={editClient}
+                  editPhase={editPhase}
+                  setEditPhase={setEditPhase}
+                  editDatum={editDatum}
+                  setEditDatum={setEditDatum}
+                  editStatus={editStatus}
+                  setEditStatus={setEditStatus}
+                  editDesc={editDesc}
+                  setEditDesc={setEditDesc}
+                  handleUpdateProject={handleUpdateProject}
+                  saving={saving}
+                  canEditProjects={canEditProjects}
+                  canInviteProjectMembers={canInviteProjectMembers}
+                  handleUnarchiveProject={handleUnarchiveProject}
+                  setSelectedProject={setSelectedProject}
+                  setShowPermanentDeleteConfirm={setShowPermanentDeleteConfirm}
+                  setShowDeleteConfirm={setShowDeleteConfirm}
+                  setShowAssignModal={setShowAssignModal}
+                  activities={activities}
+                  settingsActivitySections={settingsActivitySections}
+                  settingsActivitySectionIndex={settingsActivitySectionIndex}
+                  setSettingsActivitySectionIndex={setSettingsActivitySectionIndex}
+                  newActivityText={newActivityText}
+                  setNewActivityText={setNewActivityText}
+                  submittingActivity={submittingActivity}
+                  deletingActivityId={deletingActivityId}
+                  handleAddActivity={handleAddActivity}
+                  handleDeleteActivity={handleDeleteActivity}
+                />
 
               ) : (() => {
                 const tabToCategory: Record<string, string> = {
@@ -1379,7 +764,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
               <p className="page-subtitle">Manage tracking, computations, and deployments for active field operations</p>
             </div>
             <div className="header-actions">
-              <button className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => setShowNewModal(true)} disabled={!canEditProjects}>
+              <button className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={handleOpenNewProject} disabled={!canEditProjects}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                 New Project
               </button>
@@ -1387,16 +772,24 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
           </header>
 
           <div className="card" style={{ padding: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {['All', 'Active', 'Completed', 'Mine', 'Archived'].map(tab => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', gap: '12px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', minWidth: 0 }}>
+                {Object.keys(counts).map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => setActiveFilter(tab as any)}
+                    onClick={() => setActiveFilter(tab as typeof activeFilter)}
                     style={{
                       background: activeFilter === tab ? 'var(--text-h)' : 'transparent',
                       color: activeFilter === tab ? '#fff' : 'var(--text)',
-                      border: 'none', padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                       display: 'flex', gap: '6px', alignItems: 'center'
                     }}
                   >
@@ -1413,21 +806,22 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
                   </button>
                 ))}
               </div>
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: '300px' }}>
                 <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text)' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                <input className="input-field" placeholder="Search reference or client..." style={{ paddingLeft: '32px', height: '34px', fontSize: '13px', width: '240px' }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <input className="input-field" placeholder="Search reference or client..." style={{ paddingLeft: '32px', height: '34px', fontSize: '13px', width: '100%' }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
             </div>
 
+            <div style={{ overflowX: 'auto' }}>
             <table className="invoice-table" style={{ margin: 0, width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
                   <th style={{ padding: '16px 20px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>PROJECT</th>
-                  <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>CLIENT</th>
-                  <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>PHASE</th>
-                  <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>SURVEYOR</th>
-                  <th style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>DATUM</th>
-                  <th style={{ padding: '16px 8px', textAlign: 'right', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>POINTS</th>
+                  <th className="project-col-client" style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>CLIENT</th>
+                  <th className="project-col-phase" style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>PHASE</th>
+                  <th className="project-col-surveyor" style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>SURVEYOR</th>
+                  <th className="project-col-datum" style={{ padding: '16px 8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>DATUM</th>
+                  <th className="project-col-points" style={{ padding: '16px 8px', textAlign: 'right', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>POINTS</th>
                   <th style={{ padding: '16px 8px', minWidth: '120px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>PROGRESS</th>
                   <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>STATUS</th>
                 </tr>
@@ -1453,11 +847,11 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
                           <code style={{ fontSize: '12px', color: 'var(--accent)', background: 'var(--accent-bg)', padding: '3px 8px', borderRadius: '4px', width: 'fit-content', marginTop: '6px', fontWeight: 600 }}>{p.id}</code>
                         </div>
                       </td>
-                      <td style={{ fontSize: '14px', color: 'var(--text-h)', fontWeight: 600, padding: '16px 8px' }}>{p.client}</td>
-                      <td style={{ fontSize: '13px', color: 'var(--text)', padding: '16px 8px' }}>{p.phase}</td>
-                      <td style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500, padding: '16px 8px' }}>{surveyor}</td>
-                      <td style={{ fontSize: '12px', color: 'var(--text)', padding: '16px 8px' }}>{p.datum}</td>
-                      <td style={{ fontSize: '14px', fontFamily: 'monospace', textAlign: 'right', fontWeight: 700, color: 'var(--text-h)', padding: '16px 8px' }}>{p.points.toLocaleString()}</td>
+                      <td className="project-col-client" style={{ fontSize: '14px', color: 'var(--text-h)', fontWeight: 600, padding: '16px 8px' }}>{p.client}</td>
+                      <td className="project-col-phase" style={{ fontSize: '13px', color: 'var(--text)', padding: '16px 8px' }}>{p.phase}</td>
+                      <td className="project-col-surveyor" style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500, padding: '16px 8px' }}>{surveyor}</td>
+                      <td className="project-col-datum" style={{ fontSize: '12px', color: 'var(--text)', padding: '16px 8px' }}>{p.datum}</td>
+                      <td className="project-col-points" style={{ fontSize: '14px', fontFamily: 'monospace', textAlign: 'right', fontWeight: 700, color: 'var(--text-h)', padding: '16px 8px' }}>{p.points.toLocaleString()}</td>
                       <td style={{ padding: '16px 8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div style={{ flex: 1, height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -1474,6 +868,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
                 })}
               </tbody>
             </table>
+            </div>
 
             {filteredProjects.length === 0 && (
               <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text)' }}>

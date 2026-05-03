@@ -12,12 +12,17 @@ Frontend client for SiteSurveyor, built with React, TypeScript, and Vite.
 
 ## Environment
 
-Create `.env` in this directory:
+Create `frontend/.env` (see `.env.example`):
 
 ```bash
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+# Use one of the following from Project Settings → API (never the service_role key):
 VITE_SUPABASE_ANON_KEY=your-anon-key
+# or, if the dashboard only shows a publishable key:
+# VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
+
+The shared client is [`src/lib/supabase/client.ts`](src/lib/supabase/client.ts).
 
 ## Key Folders
 

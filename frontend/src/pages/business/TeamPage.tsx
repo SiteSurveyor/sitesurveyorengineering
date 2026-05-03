@@ -192,16 +192,16 @@ export default function TeamPage({ workspaceId }: TeamPageProps) {
         <input className="search-input" placeholder="Search personnel..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      <div className="card team-table-card">
-        <table className="invoice-table team-table">
+      <div className="card team-table-card" style={{ overflowX: 'auto' }}>
+        <table className="invoice-table team-table" style={{ minWidth: '600px' }}>
           <thead>
             <tr>
               <th className="team-col-name">NAME</th>
               <th className="team-col-role">ROLE</th>
-              <th className="team-col-license">TITLE</th>
-              <th className="team-col-crew">PROMO CODE</th>
+              <th className="team-col-license hide-on-mobile">TITLE</th>
+              <th className="team-col-crew hide-on-mobile">PROMO CODE</th>
               <th className="team-col-projects">EMAIL</th>
-              <th className="team-col-surveys">PHONE</th>
+              <th className="team-col-surveys hide-on-mobile">PHONE</th>
               <th className="team-col-status team-col-status-center">STATUS</th>
             </tr>
           </thead>
@@ -212,10 +212,10 @@ export default function TeamPage({ workspaceId }: TeamPageProps) {
                 <tr key={m.id} className="team-row">
                   <td className="team-cell-name">{m.full_name ?? '—'}</td>
                   <td className="team-cell-role">{roleLabels[m.role] ?? m.role}</td>
-                  <td className="team-cell-license">{m.professional_title ?? m.title ?? '—'}</td>
-                  <td className="team-cell-crew"><code>{m.promo_code ?? '—'}</code></td>
+                  <td className="team-cell-license hide-on-mobile">{m.professional_title ?? m.title ?? '—'}</td>
+                  <td className="team-cell-crew hide-on-mobile"><code>{m.promo_code ?? '—'}</code></td>
                   <td className="team-cell-projects">{m.work_email ?? m.email ?? '—'}</td>
-                  <td className="team-cell-surveys">{m.work_phone ?? m.phone ?? '—'}</td>
+                  <td className="team-cell-surveys hide-on-mobile">{m.work_phone ?? m.phone ?? '—'}</td>
                   <td className="team-cell-status team-cell-status-center">
                     <span className={`badge ${cfg.badge}`}>{cfg.label}</span>
                   </td>
@@ -240,16 +240,16 @@ export default function TeamPage({ workspaceId }: TeamPageProps) {
       </div>
 
       {pendingInvitations.length > 0 && (
-        <div className="card team-table-card" style={{ marginTop: '12px' }}>
+        <div className="card team-table-card" style={{ marginTop: '12px', overflowX: 'auto' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <h3 style={{ margin: 0, fontSize: '14px' }}>Pending Invitations</h3>
           </div>
-          <table className="invoice-table team-table">
+          <table className="invoice-table team-table" style={{ minWidth: '400px' }}>
             <thead>
               <tr>
                 <th>EMAIL</th>
                 <th>ROLE</th>
-                <th>EXPIRES</th>
+                <th className="hide-on-mobile">EXPIRES</th>
               </tr>
             </thead>
             <tbody>
@@ -257,7 +257,7 @@ export default function TeamPage({ workspaceId }: TeamPageProps) {
                 <tr key={invite.id}>
                   <td>{invite.email}</td>
                   <td>{roleLabels[invite.role] ?? invite.role}</td>
-                  <td>{new Date(invite.expires_at).toLocaleDateString()}</td>
+                  <td className="hide-on-mobile">{new Date(invite.expires_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>

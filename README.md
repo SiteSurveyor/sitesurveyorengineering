@@ -6,7 +6,7 @@ Supabase backend, and optional Tauri desktop shell.
 ## Repository Structure
 
 - `frontend`: React + TypeScript + Vite application.
-- `supabase`: SQL migrations and backend architecture docs.
+- `supabase`: SQL migrations (timestamped `20*.sql` baseline in `supabase/migrations/`) and backend architecture docs.
 - `backend`: Tauri wrapper for desktop packaging.
 
 ## Local Development
@@ -15,7 +15,8 @@ Supabase backend, and optional Tauri desktop shell.
 
 - Node.js 20+
 - npm
-- Supabase CLI
+- A **hosted** Supabase project ([dashboard](https://supabase.com/dashboard)) — **Docker is not required**
+- Supabase CLI (optional but recommended for `supabase db push` migrations)
 - Rust toolchain (only required for Tauri desktop builds)
 
 ### Frontend
@@ -26,7 +27,9 @@ npm install
 npm run dev
 ```
 
-### Backend (Supabase)
+### Backend (hosted Supabase)
+
+Use your cloud project only — no local `supabase start` / Docker:
 
 ```bash
 supabase login
@@ -36,11 +39,12 @@ supabase db push
 
 ## Environment Variables
 
-Create `frontend/.env` with:
+Create `frontend/.env` (template: `frontend/.env.example`):
 
 ```bash
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+# or: VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
 Never place service-role credentials in frontend environment files.

@@ -46,7 +46,7 @@ export async function listTimeEntries(workspaceId: string): Promise<TimeEntryRow
   const user = await getCurrentUser();
   if (!user) return [];
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("time_entries")
     .select("*, projects(name)")
     .eq("workspace_id", workspaceId)
@@ -62,7 +62,7 @@ export async function listExpenseEntries(workspaceId: string): Promise<ExpenseEn
   const user = await getCurrentUser();
   if (!user) return [];
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("expense_entries")
     .select("*, projects(name)")
     .eq("workspace_id", workspaceId)
@@ -81,7 +81,7 @@ export async function createTimeEntry(
   const user = await getCurrentUser();
   if (!user) throw new Error("You must be signed in to log time.");
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("time_entries")
     .insert({
       ...input,
@@ -102,7 +102,7 @@ export async function createExpenseEntry(
   const user = await getCurrentUser();
   if (!user) throw new Error("You must be signed in to log expenses.");
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("expense_entries")
     .insert({
       ...input,

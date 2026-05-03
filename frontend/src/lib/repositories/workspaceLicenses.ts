@@ -1,12 +1,8 @@
 import { supabase } from "../supabase/client.ts";
 
-export type LicenseTier = "free" | "pro" | "enterprise";
-export type LicenseStatus =
-  | "trialing"
-  | "active"
-  | "past_due"
-  | "suspended"
-  | "cancelled";
+// Re-export from the canonical source to avoid duplicate definitions
+export type { LicenseTier, LicenseStatus } from "../../features/workspace/types.ts";
+import type { LicenseTier, LicenseStatus } from "../../features/workspace/types.ts";
 
 export interface WorkspaceLicense {
   workspace_id: string;
@@ -20,6 +16,10 @@ export interface WorkspaceLicense {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  seat_limit?: number | null;
+  project_cap?: number | null;
+  asset_cap?: number | null;
+  storage_cap_bytes?: number | null;
 }
 
 export interface LicenseEvent {
@@ -37,7 +37,7 @@ export interface LicenseEvent {
 export async function getWorkspaceLicense(
   workspaceId: string,
 ): Promise<WorkspaceLicense | null> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("workspace_licenses")
     .select("*")
     .eq("workspace_id", workspaceId)
@@ -56,7 +56,7 @@ export async function updateWorkspaceLicense(
     >
   >,
 ): Promise<WorkspaceLicense> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("workspace_licenses")
     .update(patch)
     .eq("workspace_id", workspaceId)
@@ -70,7 +70,7 @@ export async function updateWorkspaceLicense(
 export async function listLicenseEvents(
   workspaceId: string,
 ): Promise<LicenseEvent[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("license_events")
     .select("*")
     .eq("workspace_id", workspaceId)

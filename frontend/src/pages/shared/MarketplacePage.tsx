@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listMarketplaceListings } from '../../lib/repositories/marketplace.ts'
+import {
+  createMarketplaceListing,
+  deleteMarketplaceListing,
+  listMarketplaceListings,
+  updateMarketplaceListing,
+} from '../../lib/repositories/marketplace.ts'
 import type { MarketplaceListingRow } from '../../lib/repositories/marketplace.ts'
+import SelectDropdown from '../../components/SelectDropdown.tsx'
 import '../../styles/pages.css'
 
 /* ── SVG Icon Components ── */
@@ -109,18 +115,33 @@ type FilterType = 'all' | 'Total Station' | 'GNSS Receiver' | 'Digital Level' | 
 
 interface MarketplacePageProps {
   workspaceId: string;
+  isPlatformAdmin?: boolean;
 }
 
-export default function MarketplacePage({ workspaceId }: MarketplacePageProps) {
+export default function MarketplacePage({
+  workspaceId,
+  isPlatformAdmin = false,
+}: MarketplacePageProps) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<FilterType>('all')
   const [selectedListing, setSelectedListing] = useState<MarketplaceListingRow | null>(null)
-  const [showMine, setShowMine] = useState(false)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
 
   const [listingState, setListingState] = useState<MarketplaceListingRow[]>([])
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [savingListing, setSavingListing] = useState(false)
+  const [mName, setMName] = useState('')
+  const [mType, setMType] = useState('Total Station')
+  const [mCondition, setMCondition] = useState('Good')
+  const [mPrice, setMPrice] = useState('')
+  const [mCurrency, setMCurrency] = useState('USD')
+  const [mSeller, setMSeller] = useState('')
+  const [mLocation, setMLocation] = useState('')
+  const [mDescription, setMDescription] = useState('')
+  const [mSpecs, setMSpecs] = useState('')
 
   const fetchListings = useCallback(async () => {
     try {
@@ -156,13 +177,95 @@ export default function MarketplacePage({ workspaceId }: MarketplacePageProps) {
   const clearMarketplaceFilters = () => {
     setSearch('')
     setTypeFilter('all')
-    setShowMine(false)
     setPage(1)
+  }
+
+  const openCreateListing = () => {
+    setEditingId(null)
+    setMName('')
+    setMType('Total Station')
+    setMCondition('Good')
+    setMPrice('')
+    setMCurrency('USD')
+    setMSeller('')
+    setMLocation('')
+    setMDescription('')
+    setMSpecs('')
+    setEditorOpen(true)
+  }
+
+  const openEditListing = (row: MarketplaceListingRow) => {
+    setEditingId(row.id)
+    setMName(row.name)
+    setMType(row.type)
+    setMCondition(row.condition)
+    setMPrice(String(row.price))
+    setMCurrency(row.currency)
+    setMSeller(row.seller)
+    setMLocation(row.location)
+    setMDescription(row.description ?? '')
+    setMSpecs((row.specs ?? []).join(', '))
+    setEditorOpen(true)
+    setSelectedListing(null)
+  }
+
+  const saveListing = async () => {
+    if (!mName.trim() || !mSeller.trim() || !mLocation.trim()) {
+      setFetchError('Name, seller, and location are required.')
+      return
+    }
+    const priceNum = Number(mPrice)
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      setFetchError('Enter a valid price.')
+      return
+    }
+    const specsArr = mSpecs
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    setSavingListing(true)
+    setFetchError(null)
+    try {
+      const payload = {
+        name: mName.trim(),
+        type: mType,
+        condition: mCondition,
+        price: priceNum,
+        currency: mCurrency.trim() || 'USD',
+        seller: mSeller.trim(),
+        location: mLocation.trim(),
+        description: mDescription.trim() || null,
+        specs: specsArr.length ? specsArr : null,
+      }
+      if (editingId) {
+        await updateMarketplaceListing(editingId, payload)
+      } else {
+        await createMarketplaceListing(workspaceId, payload)
+      }
+      setEditorOpen(false)
+      await fetchListings()
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : 'Failed to save listing.')
+    } finally {
+      setSavingListing(false)
+    }
+  }
+
+  const removeListing = async (id: string) => {
+    if (!window.confirm('Delete this listing permanently?')) return
+    setFetchError(null)
+    try {
+      await deleteMarketplaceListing(id)
+      setSelectedListing(null)
+      await fetchListings()
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : 'Failed to delete.')
+    }
   }
 
   useEffect(() => {
     setPage(1)
-  }, [search, typeFilter, showMine])
+  }, [search, typeFilter])
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
@@ -183,14 +286,23 @@ export default function MarketplacePage({ workspaceId }: MarketplacePageProps) {
           {fetchError}
         </div>
       )}
-      <header className="page-header mkt-header">
+      <header className="page-header mkt-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1>Instruments &amp; Calibration</h1>
           <p className="page-subtitle">Browse available survey instruments and calibration services</p>
+          {!isPlatformAdmin && (
+            <p className="page-subtitle" style={{ fontSize: 13, marginTop: 8, opacity: 0.85 }}>
+              Listings are maintained by platform administrators.
+            </p>
+          )}
         </div>
-        <div className="header-actions">
-          <button className={`btn btn-outline ${showMine ? 'active' : ''}`} onClick={() => setShowMine(v => !v)}>{showMine ? 'Viewing My Listings' : 'My Listings'}</button>
-        </div>
+        {isPlatformAdmin && (
+          <div className="header-actions">
+            <button type="button" className="btn btn-primary" onClick={openCreateListing}>
+              Add listing
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="filter-bar">
@@ -253,20 +365,105 @@ export default function MarketplacePage({ workspaceId }: MarketplacePageProps) {
             </div>
             <div className="mkt-modal-actions">
               <button className="btn btn-outline" onClick={() => setSelectedListing(null)}>Close</button>
+              {isPlatformAdmin && selectedListing ? (
+                <>
+                  <button type="button" className="btn btn-outline" onClick={() => openEditListing(selectedListing)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn btn-outline" onClick={() => void removeListing(selectedListing.id)}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editorOpen && (
+        <div
+          className="billing-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !savingListing && setEditorOpen(false)}
+        >
+          <div
+            className="billing-modal billing-modal--scrollable-form"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="billing-modal-header">
+              <h3>{editingId ? 'Edit listing' : 'Add listing'}</h3>
+              <button
+                type="button"
+                className="billing-modal-close"
+                disabled={savingListing}
+                onClick={() => setEditorOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="billing-modal-body-scroll">
+              <div className="billing-modal-grid billing-modal-form-single">
+                <label className="form-label" htmlFor="mkt-editor-name">Name</label>
+                <input id="mkt-editor-name" className="input-field" value={mName} onChange={(e) => setMName(e.target.value)} placeholder="Instrument or service name" />
+                <label className="form-label">Type</label>
+                <SelectDropdown
+                  className="input-field billing-history-select"
+                  value={mType}
+                  onChange={(v) => setMType(v)}
+                  options={[
+                    { value: 'Total Station', label: 'Total Station' },
+                    { value: 'GNSS Receiver', label: 'GNSS Receiver' },
+                    { value: 'Digital Level', label: 'Digital Level' },
+                    { value: 'UAV / Drone', label: 'UAV / Drone' },
+                    { value: 'Controller', label: 'Controller' },
+                    { value: 'Calibration Service', label: 'Calibration Service' },
+                  ]}
+                />
+                <label className="form-label">Condition</label>
+                <SelectDropdown
+                  className="input-field billing-history-select"
+                  value={mCondition}
+                  onChange={setMCondition}
+                  options={[
+                    { value: 'New', label: 'New' },
+                    { value: 'Like New', label: 'Like New' },
+                    { value: 'Good', label: 'Good' },
+                    { value: 'Fair', label: 'Fair' },
+                    { value: 'Service', label: 'Service' },
+                  ]}
+                />
+                <label className="form-label" htmlFor="mkt-editor-price">Price</label>
+                <input id="mkt-editor-price" className="input-field" type="number" min={0} step={0.01} value={mPrice} onChange={(e) => setMPrice(e.target.value)} placeholder="0" />
+                <label className="form-label" htmlFor="mkt-editor-currency">Currency</label>
+                <input id="mkt-editor-currency" className="input-field" value={mCurrency} onChange={(e) => setMCurrency(e.target.value)} placeholder="USD" />
+                <label className="form-label" htmlFor="mkt-editor-seller">Seller</label>
+                <input id="mkt-editor-seller" className="input-field" value={mSeller} onChange={(e) => setMSeller(e.target.value)} />
+                <label className="form-label" htmlFor="mkt-editor-location">Location</label>
+                <input id="mkt-editor-location" className="input-field" value={mLocation} onChange={(e) => setMLocation(e.target.value)} />
+                <label className="form-label" htmlFor="mkt-editor-desc">Description</label>
+                <textarea id="mkt-editor-desc" className="input-field" rows={3} value={mDescription} onChange={(e) => setMDescription(e.target.value)} />
+                <label className="form-label" htmlFor="mkt-editor-specs">Specs (comma-separated)</label>
+                <input id="mkt-editor-specs" className="input-field" value={mSpecs} onChange={(e) => setMSpecs(e.target.value)} placeholder='e.g. 5" accuracy, Bluetooth' />
+              </div>
+            </div>
+            <div className="billing-modal-actions">
+              <button type="button" className="btn btn-outline" disabled={savingListing} onClick={() => setEditorOpen(false)}>Cancel</button>
+              <button type="button" className="btn btn-primary" disabled={savingListing} onClick={() => void saveListing()}>{savingListing ? 'Saving…' : 'Save'}</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Marketplace Table */}
-      <div className="card mkt-table-card">
-        <table className="invoice-table mkt-table">
+      <div className="card mkt-table-card" style={{ overflowX: 'auto' }}>
+        <table className="invoice-table mkt-table" style={{ minWidth: '600px' }}>
           <thead>
             <tr>
               <th className="mkt-col-item">INSTRUMENT</th>
-              <th className="mkt-col-condition">CONDITION</th>
+              <th className="mkt-col-condition hide-on-mobile">CONDITION</th>
               <th className="mkt-col-price">PRICE</th>
-              <th className="mkt-col-location">LOCATION</th>
+              <th className="mkt-col-location hide-on-mobile">LOCATION</th>
               <th className="mkt-col-seller">SELLER</th>
               <th className="mkt-col-menu"></th>
             </tr>
@@ -285,7 +482,7 @@ export default function MarketplacePage({ workspaceId }: MarketplacePageProps) {
                     </div>
                   </div>
                 </td>
-                <td className="mkt-cell-condition">
+                <td className="mkt-cell-condition hide-on-mobile">
                   <span className={`badge ${conditionBadge[l.condition]}`}>{l.condition}</span>
                 </td>
                 <td className="mkt-cell-price">
@@ -294,17 +491,21 @@ export default function MarketplacePage({ workspaceId }: MarketplacePageProps) {
                     <span className="mkt-price-currency">{l.currency}</span>
                   </div>
                 </td>
-                <td className="mkt-cell-location">{l.location}</td>
+                <td className="mkt-cell-location hide-on-mobile">{l.location}</td>
                 <td className="mkt-cell-seller">
                   <div className="mkt-seller">
                     <span className="mkt-seller-name">{l.seller}</span>
                     <span className="mkt-seller-posted">{new Date(l.created_at).toLocaleDateString()}</span>
                   </div>
                 </td>
-                <td className="mkt-cell-menu">
-                  <button className="mkt-row-menu-btn" onClick={(e) => e.stopPropagation()}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                  </button>
+                <td className="mkt-cell-menu" onClick={(e) => e.stopPropagation()}>
+                  {isPlatformAdmin ? (
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openEditListing(l)}>Edit</button>
+                  ) : (
+                    <button type="button" className="mkt-row-menu-btn" aria-hidden>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

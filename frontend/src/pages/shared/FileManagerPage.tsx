@@ -546,6 +546,7 @@ export default function FileManagerPage({ workspaceId }: FileManagerPageProps) {
             </div>
           )}
 
+          <div style={{ overflowX: 'auto' }}>
           <table className="invoice-table file-manager-table">
             <thead>
               <tr>
@@ -713,6 +714,7 @@ export default function FileManagerPage({ workspaceId }: FileManagerPageProps) {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

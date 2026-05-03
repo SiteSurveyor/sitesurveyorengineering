@@ -20,25 +20,37 @@ export interface AppUserContext {
   workspaceLicense: WorkspaceLicense | null;
 }
 
-export async function getCurrentAppUser(): Promise<AppUserContext> {
-  const session = await getCurrentSession();
+/** True when the corresponding fetch threw (e.g. network or PostgREST error). */
+export interface AppUserLoadDiagnostics {
+  profileFetchFailed: boolean;
+  defaultWorkspaceFetchFailed: boolean;
+  workspacesFetchFailed: boolean;
+}
 
-  if (!session) {
-    return {
-      session: null,
-      profile: null,
-      defaultWorkspace: null,
-      workspaces: [],
-      workspaceLicense: null,
-    };
-  }
+const emptyContext = (): AppUserContext => ({
+  session: null,
+  profile: null,
+  defaultWorkspace: null,
+  workspaces: [],
+  workspaceLicense: null,
+});
 
+async function loadAppUserFromSession(session: Session): Promise<{
+  context: AppUserContext;
+  diagnostics: AppUserLoadDiagnostics;
+}> {
   const [profileResult, defaultWorkspaceResult, workspacesResult] =
     await Promise.allSettled([
       getMyProfile(),
       getDefaultWorkspace(),
       getMyWorkspaces(),
     ]);
+
+  const diagnostics: AppUserLoadDiagnostics = {
+    profileFetchFailed: profileResult.status === "rejected",
+    defaultWorkspaceFetchFailed: defaultWorkspaceResult.status === "rejected",
+    workspacesFetchFailed: workspacesResult.status === "rejected",
+  };
 
   const defaultWorkspaceId =
     defaultWorkspaceResult.status === "fulfilled"
@@ -55,19 +67,52 @@ export async function getCurrentAppUser(): Promise<AppUserContext> {
     : null;
 
   return {
-    session,
-    profile: profileResult.status === "fulfilled" ? profileResult.value : null,
-    defaultWorkspace:
-      defaultWorkspaceResult.status === "fulfilled"
-        ? defaultWorkspaceResult.value
-        : null,
-    workspaces:
-      workspacesResult.status === "fulfilled" ? workspacesResult.value : [],
-    workspaceLicense:
-      workspaceLicenseResult &&
-      workspaceLicenseResult[0] &&
-      workspaceLicenseResult[0].status === "fulfilled"
-        ? workspaceLicenseResult[0].value
-        : null,
+    context: {
+      session,
+      profile: profileResult.status === "fulfilled" ? profileResult.value : null,
+      defaultWorkspace:
+        defaultWorkspaceResult.status === "fulfilled"
+          ? defaultWorkspaceResult.value
+          : null,
+      workspaces:
+        workspacesResult.status === "fulfilled" ? workspacesResult.value : [],
+      workspaceLicense:
+        workspaceLicenseResult &&
+        workspaceLicenseResult[0] &&
+        workspaceLicenseResult[0].status === "fulfilled"
+          ? workspaceLicenseResult[0].value
+          : null,
+    },
+    diagnostics,
   };
+}
+
+export async function getCurrentAppUser(): Promise<AppUserContext> {
+  const session = await getCurrentSession();
+
+  if (!session) {
+    return emptyContext();
+  }
+
+  return (await loadAppUserFromSession(session)).context;
+}
+
+export async function getCurrentAppUserWithDiagnostics(): Promise<{
+  context: AppUserContext;
+  diagnostics: AppUserLoadDiagnostics;
+}> {
+  const session = await getCurrentSession();
+
+  if (!session) {
+    return {
+      context: emptyContext(),
+      diagnostics: {
+        profileFetchFailed: false,
+        defaultWorkspaceFetchFailed: false,
+        workspacesFetchFailed: false,
+      },
+    };
+  }
+
+  return loadAppUserFromSession(session);
 }

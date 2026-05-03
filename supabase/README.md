@@ -2,6 +2,28 @@
 
 This project uses **Supabase** as the backend, database, auth provider, and file storage layer.
 
+## Hosted Supabase only (recommended)
+
+This repo targets **cloud Supabase**. You do **not** need Docker or `supabase start` on your machine.
+
+1. Create a project at [supabase.com](https://supabase.com/dashboard).
+2. Put **Project URL** and **anon** key in `frontend/.env` (see `frontend/.env.example`).
+3. Link the CLI to that project and apply migrations:
+
+   ```bash
+   supabase login
+   supabase link --project-ref YOUR_PROJECT_REF
+   supabase db push
+   ```
+
+   Your project ref is the subdomain of your Supabase URL (e.g. `https://abcdefgh.supabase.co` → `abcdefgh`).
+
+**If the Supabase CLI is unavailable or broken on your machine:** from the repo root, run `./supabase/build-dashboard-bundle.sh`, then open the generated `supabase/bundle_apply_in_dashboard.sql` in **Dashboard → SQL Editor** and execute it on a **new/empty** database (not recommended for projects that already have schema).
+
+`db push` is preferred: it records migration history; the bundle is a one-shot fallback.
+
+**Do not use** `supabase start` or rely on `config.toml` ports unless you intentionally add local Docker development later.
+
 ## Architecture principles
 
 ### 1. Workspace-first multi-tenancy
@@ -133,11 +155,34 @@ For secure backend operations:
 
 ## Current migration strategy
 
-The first foundational migration should live at:
+Migrations use Supabase’s usual **`YYYYMMDDHHMMSS_description.sql`** naming so ordering matches a **new greenfield project**. Files in [`supabase/migrations/`](supabase/migrations/) run in lexicographic order.
 
-- `supabase/migrations/0001_foundation.sql`
+**Baseline chain (initial schema):**
 
-It should create:
+| File | Purpose |
+|------|---------|
+| `20260503120000_extensions_and_schemas.sql` | `pgcrypto`, `private` / `audit` schemas |
+| `20260503120001_enums.sql` | Public enum types |
+| `20260503120002_tables_indexes.sql` | All base/domain tables, indexes, workspace license seed insert; `profiles.auth_signup_account_type` CHECK (`personal` \| `business` \| `platform_admin`) |
+| `20260503120003_functions.sql` | Helper functions, `handle_new_auth_user` (clamps signup path), RPCs, `is_platform_admin()` |
+| `20260503120004_triggers.sql` | Auth user trigger, license logging, `set_updated_at` |
+| `20260503120005_rls_policies.sql` | Enable RLS and table policies |
+| `20260503120006_storage.sql` | Storage buckets and `storage.objects` policies |
+| `20260503120007_post_deploy.sql` | Profile/workspace backfills, business-only enforcement, late tables (marketplace, time/expense, etc.) |
+
+**Adding changes after go-live:** create a new migration (never edit an already-applied file):
+
+```bash
+supabase migration new add_my_feature
+# edit the new sql file, then:
+supabase db push
+```
+
+**Signup account types (app metadata):** `personal`, `business`, and `platform_admin` are stored in `profiles.auth_signup_account_type` (and clamped in the trigger). **Platform operator** access is separate: `profiles.is_platform_admin` (set in SQL), not the signup type.
+
+**Fresh database:** `supabase db push` applies the full chain. If an older single-file migration was already applied on an environment, do not rename history blindly—use Supabase **migration repair** or apply only to a new/empty project.
+
+It creates (collectively):
 
 - extensions
 - enums

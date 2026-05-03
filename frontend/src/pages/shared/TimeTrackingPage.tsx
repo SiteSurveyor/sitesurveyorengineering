@@ -214,13 +214,14 @@ export default function TimeTrackingPage({ workspaceId }: TimeTrackingPageProps)
         </div>
 
         {activeTab === 'time' ? (
+          <div style={{ overflowX: 'auto' }}>
           <table className="invoice-table">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Project</th>
-                <th>Task</th>
-                <th>Notes</th>
+                <th className="hide-on-mobile">Task</th>
+                <th className="hide-on-mobile">Notes</th>
                 <th style={{ textAlign: 'center' }}>Billable</th>
                 <th style={{ textAlign: 'right' }}>Hours</th>
               </tr>
@@ -230,8 +231,8 @@ export default function TimeTrackingPage({ workspaceId }: TimeTrackingPageProps)
                 <tr key={e.id}>
                   <td style={{ whiteSpace: 'nowrap' }}>{e.entry_date}</td>
                   <td style={{ fontWeight: 500, color: 'var(--text-h)' }}>{e.projects?.name ?? "Internal"}</td>
-                  <td>{e.task}</td>
-                  <td style={{ color: 'var(--text)', fontSize: '13px' }}>{e.notes ?? "—"}</td>
+                  <td className="hide-on-mobile">{e.task}</td>
+                  <td className="hide-on-mobile" style={{ color: 'var(--text)', fontSize: '13px' }}>{e.notes ?? "—"}</td>
                   <td style={{ textAlign: 'center' }}>
                     {e.billable ? <span style={{ color: '#22c55e' }}>✓</span> : <span style={{ color: 'var(--border-heavy)' }}>—</span>}
                   </td>
@@ -240,15 +241,17 @@ export default function TimeTrackingPage({ workspaceId }: TimeTrackingPageProps)
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
+          <div style={{ overflowX: 'auto' }}>
           <table className="invoice-table">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Project</th>
                 <th>Category</th>
-                <th>Vendor/Details</th>
-                <th style={{ textAlign: 'center' }}>Reimbursable (Bill Client)</th>
+                <th className="hide-on-mobile">Vendor/Details</th>
+                <th style={{ textAlign: 'center' }}>Reimbursable</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
               </tr>
             </thead>
@@ -262,7 +265,7 @@ export default function TimeTrackingPage({ workspaceId }: TimeTrackingPageProps)
                       {e.category}
                     </span>
                   </td>
-                  <td>{e.vendor ?? "—"}</td>
+                  <td className="hide-on-mobile">{e.vendor ?? "—"}</td>
                   <td style={{ textAlign: 'center' }}>
                     {e.reimbursable ? <span style={{ color: '#1d4ed8', fontWeight: 600, fontSize: '12px' }}>Yes</span> : <span style={{ color: 'var(--border-heavy)' }}>—</span>}
                   </td>
@@ -273,6 +276,7 @@ export default function TimeTrackingPage({ workspaceId }: TimeTrackingPageProps)
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -359,7 +363,7 @@ export default function TimeTrackingPage({ workspaceId }: TimeTrackingPageProps)
                 </>
               ) : (
                 <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div className="responsive-grid-2">
                     <div className="form-group">
                       <label className="form-label">Category</label>
                       <select

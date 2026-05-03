@@ -80,21 +80,15 @@ export default function BusinessDashboardPage({
   const activeProjectsCount = projects.filter(p => p.status === 'active').length;
   const pendingInvoices = invoices.filter(i => i.status === 'draft' || i.status === 'sent' || i.status === 'overdue');
   const pendingInvoicesTotal = pendingInvoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
-  const dispatchBoard = jobEvents
-    .filter((event) => event.event_date === new Date().toISOString().slice(0, 10))
-    .slice(0, 3)
+  const allDispatchesToday = jobEvents.filter((event) => event.event_date === new Date().toISOString().slice(0, 10));
+  const dispatchBoard = allDispatchesToday
+    .slice(0, 6)
     .map((event) => ({
       time: event.start_time ? event.start_time.slice(0, 5) : "All day",
       team: event.title,
       task: event.event_type || "Field work",
       location: event.location || "No location",
     }));
-  const teamUpdates = [
-    `${memberCount} active team member${memberCount === 1 ? "" : "s"} in workspace`,
-    `${activeProjectsCount} project${activeProjectsCount === 1 ? "" : "s"} currently active`,
-    `${calibrationsDueCount} calibration${calibrationsDueCount === 1 ? "" : "s"} due in the next 7 days`,
-    `${quotesPendingCount} quote${quotesPendingCount === 1 ? "" : "s"} waiting for client action`,
-  ];
 
   const kpis = [
     {
@@ -105,21 +99,21 @@ export default function BusinessDashboardPage({
     },
     {
       label: "Dispatches Today",
-      value: dispatchBoard.length.toString(),
-      subtext: `${dispatchBoard.filter((item) => item.time !== "All day").length} time-slotted events`,
+      value: allDispatchesToday.length.toString(),
+      subtext: `${allDispatchesToday.filter((item) => item.start_time).length} time-slotted events`,
       accent: "#3b82f6",
     },
     {
       label: "Outstanding Billing",
       value: `$${pendingInvoicesTotal.toLocaleString()}`,
       subtext: `${pendingInvoices.length} invoices overdue`,
-      accent: "#f59e0b",
+      accent: "#ef4444",
     },
     {
-      label: "Asset Availability",
-      value: assetsAvailableCount.toString(),
-      subtext: "ready for deployment",
-      accent: "#22c55e",
+      label: "Quotes Pipeline",
+      value: quotesPendingCount.toString(),
+      subtext: "awaiting approval",
+      accent: "#10b981",
     },
   ];
 
@@ -210,9 +204,7 @@ export default function BusinessDashboardPage({
             style={{ borderLeftColor: kpi.accent }}
           >
             <span className="invoice-summary-label">{kpi.label}</span>
-            <span className="invoice-summary-value" style={{ fontSize: "30px" }}>
-              {kpi.value}
-            </span>
+            <span className="invoice-summary-value">{kpi.value}</span>
             <p
               style={{
                 margin: "4px 0 0 0",
@@ -226,13 +218,7 @@ export default function BusinessDashboardPage({
         ))}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 0.8fr)",
-          gap: "24px",
-        }}
-      >
+      <div className="project-dashboard-unified-grid" style={{ marginTop: "24px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "24px", minWidth: 0 }}>
           <div className="card">
             <div
@@ -246,7 +232,7 @@ export default function BusinessDashboardPage({
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {projects.slice(0, 3).map((project, index) => (
+              {projects.slice(0, 4).map((project, index) => (
                 <div
                   key={project.id}
                   style={{
@@ -254,7 +240,7 @@ export default function BusinessDashboardPage({
                     justifyContent: "space-between",
                     padding: "16px",
                     borderBottom:
-                      index === Math.min(projects.length, 3) - 1
+                      index === Math.min(projects.length, 4) - 1
                         ? "none"
                         : "1px solid var(--border)",
                     alignItems: "center",
@@ -314,41 +300,120 @@ export default function BusinessDashboardPage({
                 borderBottom: "1px solid var(--border)",
               }}
             >
-              <h2 style={{ fontSize: "16px", margin: 0 }}>Team Activity</h2>
+              <h2 style={{ fontSize: "16px", margin: 0 }}>
+                Resource & Equipment
+              </h2>
             </div>
 
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
                 padding: "16px",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: "12px",
               }}
             >
-              {teamUpdates.map((item) => (
+              <div
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
+                  padding: "12px",
+                  background: "var(--surface)",
+                }}
+              >
                 <div
-                  key={item}
                   style={{
-                    display: "flex",
-                    gap: "10px",
-                    alignItems: "flex-start",
-                    fontSize: "13px",
+                    fontSize: "11px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.4px",
+                    color: "var(--text)",
+                    fontWeight: 700,
+                    marginBottom: "6px",
+                  }}
+                >
+                  Team Capacity
+                </div>
+                <div
+                  style={{
+                    fontSize: "22px",
+                    fontWeight: 700,
                     color: "var(--text-h)",
                   }}
                 >
-                  <span
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "999px",
-                      background: "var(--accent)",
-                      marginTop: "6px",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span>{item}</span>
+                  {memberCount}
                 </div>
-              ))}
+                <div style={{ fontSize: "12px", color: "var(--text)" }}>
+                  active field staff
+                </div>
+              </div>
+
+              <div
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
+                  padding: "12px",
+                  background: "var(--surface)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "11px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.4px",
+                    color: "var(--text)",
+                    fontWeight: 700,
+                    marginBottom: "6px",
+                  }}
+                >
+                  Ready Assets
+                </div>
+                <div
+                  style={{
+                    fontSize: "22px",
+                    fontWeight: 700,
+                    color: "var(--text-h)",
+                  }}
+                >
+                  {assetsAvailableCount}
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--text)" }}>
+                  available for deployment
+                </div>
+              </div>
+
+              <div
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
+                  padding: "12px",
+                  background: "var(--surface)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "11px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.4px",
+                    color: "var(--text)",
+                    fontWeight: 700,
+                    marginBottom: "6px",
+                  }}
+                >
+                  SG Submissions
+                </div>
+                <div
+                  style={{
+                    fontSize: "22px",
+                    fontWeight: 700,
+                    color: "var(--text-h)",
+                  }}
+                >
+                  {calibrationsDueCount}
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--text)" }}>
+                  due this week
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -456,165 +521,6 @@ export default function BusinessDashboardPage({
             >
               Open Dispatch Planner
             </button>
-          </div>
-
-          <div className="card">
-            <div
-              className="card-header"
-              style={{
-                paddingBottom: "16px",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <h2 style={{ fontSize: "16px", margin: 0 }}>
-                Resource Snapshot
-              </h2>
-            </div>
-
-            <div
-              style={{
-                padding: "16px",
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "12px",
-              }}
-            >
-              <div
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  padding: "12px",
-                  background: "var(--surface)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "11px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.4px",
-                    color: "var(--text)",
-                    fontWeight: 700,
-                    marginBottom: "6px",
-                  }}
-                >
-                  Team Capacity
-                </div>
-                <div
-                  style={{
-                    fontSize: "22px",
-                    fontWeight: 700,
-                    color: "var(--text-h)",
-                  }}
-                >
-                  {memberCount}
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text)" }}>
-                  active field staff
-                </div>
-              </div>
-
-              <div
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  padding: "12px",
-                  background: "var(--surface)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "11px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.4px",
-                    color: "var(--text)",
-                    fontWeight: 700,
-                    marginBottom: "6px",
-                  }}
-                >
-                  Ready Assets
-                </div>
-                <div
-                  style={{
-                    fontSize: "22px",
-                    fontWeight: 700,
-                    color: "var(--text-h)",
-                  }}
-                >
-                  {assetsAvailableCount}
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text)" }}>
-                  available for deployment
-                </div>
-              </div>
-
-              <div
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  padding: "12px",
-                  background: "var(--surface)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "11px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.4px",
-                    color: "var(--text)",
-                    fontWeight: 700,
-                    marginBottom: "6px",
-                  }}
-                >
-                  Quotes Pipeline
-                </div>
-                <div
-                  style={{
-                    fontSize: "22px",
-                    fontWeight: 700,
-                    color: "var(--text-h)",
-                  }}
-                >
-                  {quotesPendingCount}
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text)" }}>
-                  awaiting approval
-                </div>
-              </div>
-
-              <div
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: "10px",
-                  padding: "12px",
-                  background: "var(--surface)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "11px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.4px",
-                    color: "var(--text)",
-                    fontWeight: 700,
-                    marginBottom: "6px",
-                  }}
-                >
-                  SG Submissions
-                </div>
-                <div
-                  style={{
-                    fontSize: "22px",
-                    fontWeight: 700,
-                    color: "var(--text-h)",
-                  }}
-                >
-                  {calibrationsDueCount}
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text)" }}>
-                  due this week
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
