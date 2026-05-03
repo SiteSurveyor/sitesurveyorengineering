@@ -1,22 +1,4 @@
-import type { HubProject } from '../../../pages/shared/ProjectHubPage.tsx';
-
-// Stub exports kept for type compatibility
-export interface CadLineEntity {
-  id: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  layer: string;
-}
-
-export const CAD_PRIMARY_TOOLS: string[] = [];
-export const CAD_LAYERS = ['BOUNDARY'];
-export const CAD_GRID_SIZE = 20;
-
-export function CadToolIcon(_props: { tool: string }) {
-  return null;
-}
+import type { HubProject } from "../../../pages/shared/ProjectHubPage.tsx";
 
 interface CadWorkspaceProps {
   activeProject: HubProject;
