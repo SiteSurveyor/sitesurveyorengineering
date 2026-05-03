@@ -1,7 +1,9 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentUser } from "../auth/session.ts";
 import { supabase } from "../supabase/client.ts";
 
-const trackingDb = supabase as any;
+// Cast to generic SupabaseClient so we can query tables not in the generated schema
+const trackingDb = supabase as unknown as SupabaseClient;
 
 export interface TimeEntryRow {
   id: string;

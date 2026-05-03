@@ -10,6 +10,12 @@ export interface SignUpInput {
   email: string;
   password: string;
   fullName: string;
+  /**
+   * Self-supplied at signup. The DB trigger `public.handle_new_auth_user` only
+   * stores this in `profiles.auth_signup_account_type`; `is_platform_admin` is
+   * never set from this value, so submitting "platform_admin" creates a regular
+   * account that a super-admin must subsequently elevate.
+   */
   accountType: "personal" | "business" | "platform_admin";
   workspaceName?: string;
   company?: string;

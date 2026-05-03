@@ -10,11 +10,9 @@ import { listOrganizations } from "../../lib/repositories/organizations.ts";
 import { listProjects } from "../../lib/repositories/projects.ts";
 import {
   mapQuoteRowToUi,
-  reverseStatus,
   type UiQuote,
 } from "../../lib/mappers.ts";
 import type { OrganizationRow } from "../../lib/repositories/organizations.ts";
-import type { QuoteItemRow } from "../../lib/repositories/quotes.ts";
 import SelectDropdown from "../../components/SelectDropdown.tsx";
 import "../../styles/pages.css";
 
@@ -63,18 +61,18 @@ export default function QuotesPage({ workspaceId }: QuotesPageProps) {
       const mapped: UiQuote[] = [];
       for (const row of rows) {
         const detail = await getQuoteWithItems(row.id);
-        mapped.push(mapQuoteRowToUi(row as any, detail?.items ?? []));
+        mapped.push(mapQuoteRowToUi(row, detail?.items ?? []));
       }
       setQuotes(mapped);
       if (mapped.length > 0 && !activeQuote) {
         setActiveQuote(mapped[0]);
       }
-    } catch (err: any) {
-      setError(err.message ?? "Failed to load quotes");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load quotes");
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [workspaceId, activeQuote]);
 
   useEffect(() => {
     fetchQuotes();
@@ -87,7 +85,7 @@ export default function QuotesPage({ workspaceId }: QuotesPageProps) {
     ]).then(([orgs, projs]) => {
       setOrganizations(orgs);
       setProjectOptions(
-        projs.map((p: any) => ({ id: p.id, name: p.name })),
+        projs.map((p) => ({ id: p.id, name: p.name })),
       );
     });
   }, [workspaceId]);
@@ -106,7 +104,7 @@ export default function QuotesPage({ workspaceId }: QuotesPageProps) {
       0,
     );
 
-  const updateItem = (id: string, field: keyof LineItem, value: any) => {
+  const updateItem = (id: string, field: keyof LineItem, value: string | number) => {
     setLocalItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, [field]: value } : item,
@@ -139,8 +137,8 @@ export default function QuotesPage({ workspaceId }: QuotesPageProps) {
         }));
       await saveQuoteItems(workspaceId, activeQuote.dbId, cleaned);
       await fetchQuotes();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to save items");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save items");
     } finally {
       setSaving(false);
     }
@@ -151,8 +149,8 @@ export default function QuotesPage({ workspaceId }: QuotesPageProps) {
     try {
       await updateQuote(activeQuote.dbId, { status: "sent" });
       await fetchQuotes();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to update status");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update status");
     }
   };
 
@@ -209,8 +207,8 @@ export default function QuotesPage({ workspaceId }: QuotesPageProps) {
       setIsCreateOpen(false);
       setActiveQuote(null);
       await fetchQuotes();
-    } catch (err: any) {
-      setCreateError(err.message ?? "Failed to create quote");
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create quote");
     }
   };
 

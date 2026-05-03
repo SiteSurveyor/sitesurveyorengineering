@@ -148,8 +148,8 @@ export default function MarketplacePage({
       setFetchError(null)
       const data = await listMarketplaceListings(workspaceId)
       setListingState(data)
-    } catch (err: any) {
-      setFetchError(err.message ?? 'Failed to load listings')
+    } catch (err: unknown) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load listings')
     } finally {
       setLoading(false)
     }

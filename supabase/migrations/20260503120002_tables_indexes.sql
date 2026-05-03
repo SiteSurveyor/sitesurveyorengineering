@@ -67,11 +67,20 @@ create table public.workspace_licenses (
   ends_at timestamptz,
   trial_ends_at timestamptz,
   is_manual boolean not null default true,
+  seat_limit integer default 1,
+  project_cap integer default 12,
+  asset_cap integer default 60,
+  storage_cap_bytes bigint default 536870912,
   notes text,
   updated_by uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+comment on column public.workspace_licenses.seat_limit is 'Max active members + pending invites; NULL = unlimited.';
+comment on column public.workspace_licenses.project_cap is 'Max projects; NULL = unlimited.';
+comment on column public.workspace_licenses.asset_cap is 'Max assets; NULL = unlimited.';
+comment on column public.workspace_licenses.storage_cap_bytes is 'Max attachment bytes; NULL = unlimited.';
 
 create table public.workspace_members (
   id uuid primary key default gen_random_uuid(),
@@ -460,6 +469,161 @@ create index idx_attachments_entity on public.attachments (workspace_id, entity_
 create index idx_audit_activity_workspace_created_at on audit.activity_log (workspace_id, created_at desc);
 create index idx_workspace_licenses_tier_status on public.workspace_licenses (tier, status);
 create index idx_license_events_workspace_created_at on public.license_events (workspace_id, created_at desc);
+
+-- ── Marketplace listings ──
+
+create table public.marketplace_listings (
+  id uuid default gen_random_uuid() primary key,
+  workspace_id uuid not null references public.workspaces on delete cascade on update cascade,
+  name text not null,
+  type text not null,
+  condition text not null,
+  price numeric not null,
+  currency text not null,
+  seller text not null,
+  location text not null,
+  description text,
+  specs text[],
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null
+);
+
+create index idx_marketplace_listings_workspace_id on public.marketplace_listings (workspace_id);
+
+-- ── Marketplace orders ──
+
+create table public.marketplace_orders (
+  id uuid primary key default gen_random_uuid(),
+  buyer_workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  listing_workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  listing_id uuid not null references public.marketplace_listings (id) on delete restrict,
+  amount numeric(12, 2) not null,
+  currency text not null,
+  platform_fee_amount numeric(12, 2) not null default 0,
+  provider text not null default 'manual',
+  external_payment_ref text unique,
+  payment_status text not null default 'pending',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_marketplace_orders_buyer on public.marketplace_orders (buyer_workspace_id);
+create index idx_marketplace_orders_listing on public.marketplace_orders (listing_id);
+
+comment on table public.marketplace_orders is 'Optional order log (e.g. manual reconciliation). No payment processor is integrated.';
+
+-- ── Professionals directory ──
+
+create table public.professionals (
+  id uuid default gen_random_uuid() primary key,
+  workspace_id uuid not null references public.workspaces on delete cascade on update cascade,
+  name text not null,
+  title text not null,
+  discipline text not null,
+  experience text not null,
+  location text not null,
+  rate numeric not null,
+  rate_per text not null,
+  currency text not null,
+  availability text not null,
+  rating numeric default 0,
+  reviews integer default 0,
+  skills text[],
+  bio text,
+  certifications text[],
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null
+);
+
+create index idx_professionals_workspace_id on public.professionals (workspace_id);
+
+-- ── Project activities ──
+
+create table public.project_activities (
+  id uuid default gen_random_uuid() primary key,
+  project_id uuid not null references public.projects (id) on delete cascade on update cascade,
+  user_id uuid references auth.users (id) on delete set null,
+  content text not null,
+  activity_type text not null default 'note',
+  created_at timestamptz default now() not null
+);
+
+create index idx_project_activities_project_id on public.project_activities (project_id);
+
+-- ── Time tracking ──
+
+create table public.time_entries (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  project_id uuid references public.projects (id) on delete set null,
+  entry_date date not null,
+  task text not null,
+  hours numeric(6,2) not null check (hours > 0),
+  billable boolean not null default true,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_time_entries_workspace_user_date
+  on public.time_entries (workspace_id, user_id, entry_date desc);
+
+-- ── Expense tracking ──
+
+create table public.expense_entries (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  project_id uuid references public.projects (id) on delete set null,
+  entry_date date not null,
+  category text not null,
+  amount numeric(12,2) not null check (amount >= 0),
+  vendor text,
+  reimbursable boolean not null default false,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_expense_entries_workspace_user_date
+  on public.expense_entries (workspace_id, user_id, entry_date desc);
+
+-- ── Promo code rules ──
+
+create table public.promo_code_rules (
+  code text primary key,
+  trial_days integer,
+  signup_tier public.license_tier,
+  signup_license_status public.license_status default 'trialing',
+  seat_bonus integer not null default 0,
+  project_cap_boost integer not null default 0,
+  asset_cap_boost integer not null default 0,
+  active boolean not null default true
+);
+
+comment on table public.promo_code_rules is 'Maps signup promo codes to license trials and cap boosts.';
+
+-- ── Payment methods ──
+
+create table public.payment_methods (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces (id) on delete cascade,
+  type text not null check (type in ('Card', 'Mobile Money', 'Bank Transfer')),
+  label text not null,
+  detail text not null,
+  holder text,
+  expiry text,
+  is_default boolean not null default false,
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_payment_methods_workspace on public.payment_methods (workspace_id);
+
+-- ── Seed workspace_licenses for existing workspaces ──
 
 insert into public.workspace_licenses (workspace_id)
 select w.id

@@ -94,6 +94,7 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [user, setUser] = useState<UiUser | null>(null);
   const [authPage, setAuthPage] = useState<AuthPage>("login");
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
@@ -143,16 +144,28 @@ function App() {
 
         if (!session) {
           setUser(null);
+          setBootstrapError(null);
           return;
         }
 
-        const { user: mappedUser } = await mapUserWithRetries();
+        const { user: mappedUser, diagnostics } = await mapUserWithRetries();
         if (!isMounted) return;
 
-        setUser(mappedUser);
-      } catch {
+        if (mappedUser) {
+          setUser(mappedUser);
+          setBootstrapError(null);
+        } else {
+          setUser(null);
+          setBootstrapError(workspaceNotReadyMessage(diagnostics));
+        }
+      } catch (err) {
         if (isMounted) {
           setUser(null);
+          setBootstrapError(
+            err instanceof Error
+              ? err.message
+              : "Unexpected error while loading your workspace.",
+          );
         }
       }
     };
@@ -195,11 +208,28 @@ function App() {
     }
 
     return (
-      <LoginPage
-        onLoginSuccess={handleLoginSuccess}
-        onGoToSignup={() => setAuthPage("signup")}
-        onForgotPassword={() => setAuthPage("forgot")}
-      />
+      <>
+        {bootstrapError ? (
+          <div
+            role="alert"
+            style={{
+              padding: "0.75rem 1rem",
+              background: "#fef2f2",
+              color: "#991b1b",
+              borderBottom: "1px solid #fecaca",
+              fontSize: "0.875rem",
+              textAlign: "center",
+            }}
+          >
+            {bootstrapError}
+          </div>
+        ) : null}
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onGoToSignup={() => setAuthPage("signup")}
+          onForgotPassword={() => setAuthPage("forgot")}
+        />
+      </>
     );
   }
 

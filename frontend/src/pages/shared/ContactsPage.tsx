@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import '../../styles/pages.css'
 import { listContacts, createContact, archiveContact } from '../../lib/repositories/contacts.ts'
 import { listOrganizations } from '../../lib/repositories/organizations.ts'
@@ -25,7 +25,7 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
   const [createError, setCreateError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -40,11 +40,11 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [workspaceId])
 
   useEffect(() => {
     fetchContacts()
-  }, [workspaceId])
+  }, [fetchContacts])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -178,7 +178,7 @@ export default function ContactsPage({ workspaceId }: ContactsPageProps) {
             {['All', 'Client', 'Subcontractor', 'Vendor', 'Government'].map(tab => (
               <button
                 key={tab}
-                onClick={() => setActiveFilter(tab as any)}
+                onClick={() => setActiveFilter(tab as typeof activeFilter)}
                 style={{
                   background: activeFilter === tab ? 'var(--text-h)' : 'transparent',
                   color: activeFilter === tab ? '#fff' : 'var(--text)',

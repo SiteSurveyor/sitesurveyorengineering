@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "../../styles/project-hub.css";
 import "../../styles/pages.css";
-import { listAssets, createAsset, updateAsset, listCalibrations, listMaintenanceEvents } from "../../lib/repositories/assets.ts";
+import { listAssets, createAsset, updateAsset, listCalibrations, listMaintenanceEvents, type AssetUpdate, type AssetInsert } from "../../lib/repositories/assets.ts";
 import SelectDropdown from "../../components/SelectDropdown.tsx";
 import WorkspaceUsageBanner from "../../components/WorkspaceUsageBanner.tsx";
 import { mapAssetRowToInstrument, type UiInstrument } from "../../lib/mappers.ts";
@@ -64,7 +64,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
   const [createForm, setCreateForm] = useState({ name: '', kind: 'instrument' as const, category: '', make: '', model: '', serial_number: '', purchase_date: '', purchase_cost: '' });
   const [saving, setSaving] = useState(false);
 
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -102,9 +102,9 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceId]);
 
-  useEffect(() => { fetchAssets(); }, [workspaceId]);
+  useEffect(() => { fetchAssets(); }, [fetchAssets]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +133,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
 
   const handleStatusChange = async (dbId: string, newStatus: string) => {
     try {
-      await updateAsset(dbId, { status: newStatus as any });
+      await updateAsset(dbId, { status: newStatus as AssetUpdate["status"] });
       await fetchAssets();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update asset.");
@@ -882,7 +882,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
               <SelectDropdown
                 className="input-field"
                 value={createForm.kind}
-                onChange={(val) => setCreateForm(f => ({ ...f, kind: val as any }))}
+                onChange={(val) => setCreateForm(f => ({ ...f, kind: val as AssetInsert["kind"] }))}
                 options={[
                   { value: "instrument", label: "Instrument" },
                   { value: "vehicle", label: "Vehicle" },

@@ -10,26 +10,38 @@ export type LicenseStatus =
   | "suspended"
   | "cancelled";
 
-export type WorkspaceView =
-  | "dashboard"
-  | "files"
-  | "quotes"
-  | "projects"
-  | "dispatch"
-  | "assets"
-  | "marketplace"
-  | "professionals"
-  | "team"
-  | "jobs"
-  | "profile"
-  | "schedule"
-  | "invoices"
-  | "billing"
-  | "contacts"
-  | "timeTracking"
-  | "admin_overview"
-  | "admin_licenses"
-  | "admin_activity";
+export const WORKSPACE_VIEWS = [
+  "dashboard",
+  "files",
+  "quotes",
+  "projects",
+  "dispatch",
+  "assets",
+  "marketplace",
+  "professionals",
+  "team",
+  "jobs",
+  "profile",
+  "schedule",
+  "invoices",
+  "billing",
+  "contacts",
+  "timeTracking",
+  "admin_overview",
+  "admin_licenses",
+  "admin_activity",
+  "admin_users",
+  "admin_workspaces",
+  "admin_audit",
+] as const;
+
+export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
+
+const WORKSPACE_VIEW_SET: ReadonlySet<string> = new Set(WORKSPACE_VIEWS);
+
+export function isWorkspaceView(value: unknown): value is WorkspaceView {
+  return typeof value === "string" && WORKSPACE_VIEW_SET.has(value);
+}
 
 export interface UiUser {
   workspaceId: string;

@@ -4,28 +4,30 @@ import { supabase } from "./supabase/client.ts";
 export type ServerStatus = "checking" | "online" | "offline";
 
 const STATUS_POLL_MS = 30000;
-
-function isLikelyOfflineError(error: unknown) {
-  const message =
-    error instanceof Error
-      ? error.message.toLowerCase()
-      : String(error ?? "").toLowerCase();
-
-  return (
-    message.includes("failed to fetch") ||
-    message.includes("networkerror") ||
-    message.includes("network request failed") ||
-    message.includes("fetch")
-  );
-}
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
 async function checkSupabaseReachable(signal?: AbortSignal): Promise<boolean> {
-  const query = supabase.from("workspaces").select("id").limit(1);
-  const { error } = signal ? await query.abortSignal(signal) : await query;
+  // Primary check: getUser() makes a real network request via the Supabase client,
+  // so it respects CORS and auth headers. Unlike getSession(), it actually verifies
+  // the server is reachable.
+  try {
+    await supabase.auth.getUser();
+    return true;
+  } catch {
+    // If the client probe fails, fall back to a raw health endpoint fetch.
+  }
 
-  if (!error) return true;
-  if (isLikelyOfflineError(error)) return false;
-  return true;
+  if (!SUPABASE_URL) return false;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+      method: "GET",
+      signal,
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 export function useServerStatus() {

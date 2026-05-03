@@ -90,8 +90,8 @@ export default function SchedulePage({ workspaceId }: SchedulePageProps) {
       setError(null);
       const data = await listJobEvents(workspaceId);
       setEvents(data);
-    } catch (err: any) {
-      setError(err.message ?? "Failed to load events");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
       setLoading(false);
     }
@@ -191,8 +191,8 @@ export default function SchedulePage({ workspaceId }: SchedulePageProps) {
       }
       setIsModalOpen(false);
       await fetchEvents();
-    } catch (err: any) {
-      setFormError(err.message ?? "Failed to save event");
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to save event");
     }
   };
 
@@ -203,8 +203,8 @@ export default function SchedulePage({ workspaceId }: SchedulePageProps) {
       await deleteJobEvent(selectedEvent.id);
       setSelectedEventId(null);
       await fetchEvents();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to delete event");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete event");
     }
   };
 

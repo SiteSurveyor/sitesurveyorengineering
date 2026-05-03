@@ -6,6 +6,7 @@ import {
   getWorkspaceShellAccountLabel,
 } from "../workspace/account";
 import type { UiUser, WorkspaceView } from "../workspace/types";
+import { isWorkspaceView } from "../workspace/types";
 import { businessNavGroups } from "./navigation";
 import { renderBusinessView } from "./viewRegistry";
 
@@ -20,8 +21,8 @@ export default function BusinessWorkspaceShell({
 }: BusinessWorkspaceShellProps) {
   const storageKey = `sitesurveyor:lastView:business:${user.workspaceId}`;
   const [currentView, setCurrentView] = useState<WorkspaceView>(() => {
-    const saved = localStorage.getItem(storageKey) as WorkspaceView | null;
-    return saved ?? "dashboard";
+    const saved = localStorage.getItem(storageKey);
+    return isWorkspaceView(saved) ? saved : "dashboard";
   });
   const [isProjectFullscreen, setIsProjectFullscreen] = useState(false);
 

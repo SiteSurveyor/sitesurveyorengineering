@@ -61,8 +61,8 @@ export default function TeamPage({ workspaceId }: TeamPageProps) {
       ])
       setMyRole(membership?.role ?? null)
       setWorkspaceType(workspace?.type ?? null)
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to load team members')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load team members')
     } finally {
       setLoading(false)
     }
@@ -122,8 +122,8 @@ export default function TeamPage({ workspaceId }: TeamPageProps) {
       setInviteForm({ email: '', role: 'viewer' })
       setShowInviteModal(false)
       await fetchMembers()
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to invite team member')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to invite team member')
     } finally {
       setInviting(false)
     }

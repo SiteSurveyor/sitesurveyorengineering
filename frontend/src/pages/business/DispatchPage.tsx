@@ -102,8 +102,8 @@ export default function DispatchPage({ workspaceId }: DispatchPageProps) {
       setVehicles(assetsData.filter(a => a.kind === 'vehicle'))
       setProjects(projectsData)
       setAssignments(assignmentsData)
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to load dispatch data')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load dispatch data')
     } finally {
       setLoading(false)
     }
@@ -117,10 +117,10 @@ export default function DispatchPage({ workspaceId }: DispatchPageProps) {
     return assignments.filter(a => weekDates.includes(a.assignment_date))
   }, [assignments, weekDates])
 
-  const getAssignmentsForDay = (dayIndex: number) => {
+  const getAssignmentsForDay = useCallback((dayIndex: number) => {
     const date = weekDates[dayIndex]
     return weekAssignments.filter(a => a.assignment_date === date)
-  }
+  }, [weekDates, weekAssignments])
 
   useEffect(() => {
     if (!selectedAssignmentId) return
@@ -142,7 +142,7 @@ export default function DispatchPage({ workspaceId }: DispatchPageProps) {
   const [draftCrew, setDraftCrew] = useState<string[]>([])
   const [draftEquipment, setDraftEquipment] = useState<string[]>([])
   const [draftVehicle, setDraftVehicle] = useState('')
-  const [draftColor, setDraftColor] = useState('#eef2ff')
+  const [_draftColor, setDraftColor] = useState('#eef2ff')
   const [draftNotes, setDraftNotes] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -219,8 +219,8 @@ export default function DispatchPage({ workspaceId }: DispatchPageProps) {
       setIsModalOpen(false)
       setSelectedDay(draftDay)
       await fetchAll()
-    } catch (err: any) {
-      setFormError(err.message ?? 'Failed to save assignment')
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save assignment')
     } finally {
       setSaving(false)
     }
@@ -234,8 +234,8 @@ export default function DispatchPage({ workspaceId }: DispatchPageProps) {
       await deleteJobAssignment(selectedAssignment.id)
       setSelectedAssignmentId(null)
       await fetchAll()
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to delete assignment')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete assignment')
     }
   }
 
@@ -258,8 +258,8 @@ export default function DispatchPage({ workspaceId }: DispatchPageProps) {
       setSelectedDay(clampDayIndex(dayIndex))
       setSelectedAssignmentId(id)
       await fetchAll()
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to move assignment')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to move assignment')
     }
   }
 
@@ -292,7 +292,7 @@ export default function DispatchPage({ workspaceId }: DispatchPageProps) {
       selected: build(selectedDay),
       byDay: Array.from({ length: 5 }, (_, i) => build(i)),
     }
-  }, [weekAssignments, selectedDay, weekDates])
+  }, [selectedDay, getAssignmentsForDay])
 
   if (loading) {
     return (

@@ -8,6 +8,7 @@ import {
 import { personalNavGroups } from "./navigation";
 import { renderPersonalView } from "./viewRegistry";
 import type { UiUser, WorkspaceView } from "../workspace/types";
+import { isWorkspaceView } from "../workspace/types";
 
 interface PersonalWorkspaceShellProps {
   user: UiUser;
@@ -20,8 +21,8 @@ export default function PersonalWorkspaceShell({
 }: PersonalWorkspaceShellProps) {
   const storageKey = `sitesurveyor:lastView:personal:${user.workspaceId}`;
   const [currentView, setCurrentView] = useState<WorkspaceView>(() => {
-    const saved = localStorage.getItem(storageKey) as WorkspaceView | null;
-    return saved ?? "dashboard";
+    const saved = localStorage.getItem(storageKey);
+    return isWorkspaceView(saved) ? saved : "dashboard";
   });
   const [isProjectFullscreen, setIsProjectFullscreen] = useState(false);
 

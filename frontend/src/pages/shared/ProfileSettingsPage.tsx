@@ -50,8 +50,8 @@ export default function ProfileSettingsPage() {
       });
       setNotice("Profile saved.");
       window.setTimeout(() => setNotice(null), 2300);
-    } catch (err: any) {
-      setError(err.message ?? "Failed to save profile");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
       setSaving(false);
     }

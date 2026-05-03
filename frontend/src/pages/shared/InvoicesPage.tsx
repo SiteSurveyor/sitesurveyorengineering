@@ -70,18 +70,18 @@ export default function InvoicesPage({ workspaceId }: InvoicesPageProps) {
       const mapped: UiInvoice[] = [];
       for (const row of rows) {
         const detail = await getInvoiceWithItems(row.id);
-        mapped.push(mapInvoiceRowToUi(row as any, detail?.items ?? []));
+        mapped.push(mapInvoiceRowToUi(row, detail?.items ?? []));
       }
       setInvoices(mapped);
       if (mapped.length > 0 && !activeInvoiceId) {
         setActiveInvoiceId(mapped[0].dbId);
       }
-    } catch (err: any) {
-      setError(err.message ?? "Failed to load invoices");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load invoices");
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [workspaceId, activeInvoiceId]);
 
   useEffect(() => {
     fetchInvoices();
@@ -93,7 +93,7 @@ export default function InvoicesPage({ workspaceId }: InvoicesPageProps) {
       listProjects(workspaceId),
     ]).then(([orgs, projs]) => {
       setOrganizations(orgs);
-      setProjectOptions(projs.map((p: any) => ({ id: p.id, name: p.name })));
+      setProjectOptions(projs.map((p) => ({ id: p.id, name: p.name })));
     });
   }, [workspaceId]);
 
@@ -154,8 +154,8 @@ export default function InvoicesPage({ workspaceId }: InvoicesPageProps) {
         paid_at: new Date().toISOString(),
       });
       await fetchInvoices();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to mark as paid");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to mark as paid");
     }
   };
 
@@ -242,8 +242,8 @@ export default function InvoicesPage({ workspaceId }: InvoicesPageProps) {
       setIsCreateOpen(false);
       setActiveInvoiceId(null);
       await fetchInvoices();
-    } catch (err: any) {
-      setCreateError(err.message ?? "Failed to create invoice");
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create invoice");
     }
   };
 

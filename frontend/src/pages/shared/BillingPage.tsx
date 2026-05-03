@@ -57,7 +57,7 @@ export default function BillingPage({
   const [membership, setMembership] = useState<WorkspaceMemberRow | null>(null);
   const [license, setLicense] = useState<WorkspaceLicense | null>(null);
   const [licenseEvents, setLicenseEvents] = useState<LicenseEvent[]>([]);
-  const [licenseLoading, setLicenseLoading] = useState(true);
+  const [_licenseLoading, setLicenseLoading] = useState(true);
   const [licenseError, setLicenseError] = useState<string | null>(null);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
   const [licenseTierDraft, setLicenseTierDraft] = useState<LicenseTier>("free");
@@ -115,8 +115,8 @@ export default function BillingPage({
       setHistoryError(null);
       const data = await listPayments(workspaceId);
       setHistory(data);
-    } catch (err: any) {
-      setHistoryError(err.message ?? "Failed to load billing history");
+    } catch (err: unknown) {
+      setHistoryError(err instanceof Error ? err.message : "Failed to load billing history");
     } finally {
       setHistoryLoading(false);
     }
@@ -157,8 +157,8 @@ export default function BillingPage({
         setLicenseStatusDraft(licenseData.status);
         setLicenseNotesDraft(licenseData.notes ?? "");
       }
-    } catch (err: any) {
-      setLicenseError(err.message ?? "Failed to load license details.");
+    } catch (err: unknown) {
+      setLicenseError(err instanceof Error ? err.message : "Failed to load license details.");
     } finally {
       setLicenseLoading(false);
     }
@@ -217,8 +217,8 @@ export default function BillingPage({
       await setDefaultPaymentMethod(workspaceId, id);
       await fetchMethods();
       showNotice("Default payment method updated.");
-    } catch (err: any) {
-      showNotice(err.message ?? "Failed to update default.");
+    } catch (err: unknown) {
+      showNotice(err instanceof Error ? err.message : "Failed to update default.");
     }
   };
 
@@ -227,8 +227,8 @@ export default function BillingPage({
       await deletePaymentMethod(id);
       await fetchMethods();
       showNotice("Payment method removed.");
-    } catch (err: any) {
-      showNotice(err.message ?? "Failed to remove method.");
+    } catch (err: unknown) {
+      showNotice(err instanceof Error ? err.message : "Failed to remove method.");
     }
   };
 
@@ -258,8 +258,8 @@ export default function BillingPage({
       resetMethodForm();
       await fetchMethods();
       showNotice("Payment method added.");
-    } catch (err: any) {
-      showNotice(err.message ?? "Failed to add method.");
+    } catch (err: unknown) {
+      showNotice(err instanceof Error ? err.message : "Failed to add method.");
     }
   };
 
@@ -349,8 +349,8 @@ export default function BillingPage({
       setIsRecordPaymentOpen(false);
       resetRecordPaymentForm();
       showNotice("Payment recorded.");
-    } catch (err: any) {
-      setRecordPaymentError(err.message ?? "Failed to record payment.");
+    } catch (err: unknown) {
+      setRecordPaymentError(err instanceof Error ? err.message : "Failed to record payment.");
     } finally {
       setRecordingPayment(false);
     }
@@ -387,8 +387,8 @@ export default function BillingPage({
       setUsageReloadKey((k) => k + 1);
       setIsLicenseModalOpen(false);
       showNotice("Workspace license updated.");
-    } catch (err: any) {
-      setLicenseError(err.message ?? "Failed to update license.");
+    } catch (err: unknown) {
+      setLicenseError(err instanceof Error ? err.message : "Failed to update license.");
     } finally {
       setSavingLicense(false);
     }

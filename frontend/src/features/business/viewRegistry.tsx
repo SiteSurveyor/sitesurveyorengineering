@@ -16,8 +16,11 @@ import QuotesPage from "../../pages/shared/QuotesPage";
 import TimeTrackingPage from "../../pages/shared/TimeTrackingPage";
 import type { UiUser, WorkspaceView } from "../workspace/types";
 import AdminActivityPage from "../../pages/admin/AdminActivityPage";
+import AdminAuditPage from "../../pages/admin/AdminAuditPage";
 import AdminLicensesPage from "../../pages/admin/AdminLicensesPage";
 import AdminOverviewPage from "../../pages/admin/AdminOverviewPage";
+import AdminUsersPage from "../../pages/admin/AdminUsersPage";
+import AdminWorkspacesPage from "../../pages/admin/AdminWorkspacesPage";
 
 interface BusinessViewRegistryOptions {
   user: UiUser;
@@ -114,6 +117,15 @@ export function renderBusinessView(
 
     case "admin_activity":
       return <AdminActivityPage isPlatformAdmin={user.isPlatformAdmin} />;
+
+    case "admin_users":
+      return <AdminUsersPage isPlatformAdmin={user.isPlatformAdmin} />;
+
+    case "admin_workspaces":
+      return <AdminWorkspacesPage isPlatformAdmin={user.isPlatformAdmin} />;
+
+    case "admin_audit":
+      return <AdminAuditPage isPlatformAdmin={user.isPlatformAdmin} />;
 
     case "profile":
     default:

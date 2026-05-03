@@ -199,11 +199,17 @@
     white-space: nowrap;
 }
 
+.hub-side-tab span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
 .hub-sidebar-nav {
     padding: 16px 12px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
 .hub-nav-group {
@@ -235,6 +241,9 @@
     font-weight: 500;
     color: var(--text);
     cursor: pointer;
+    min-width: 0;
+    width: 100%;
+    text-align: left;
     transition:
         transform var(--motion-fast) var(--ease-standard),
         background var(--motion-fast) var(--ease-standard),

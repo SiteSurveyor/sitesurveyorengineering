@@ -1,10 +1,12 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../supabase/client.ts";
 
 // Re-export from the canonical source to avoid duplicate definitions
 export type { LicenseTier, LicenseStatus } from "../../features/workspace/types.ts";
 import type { LicenseTier, LicenseStatus } from "../../features/workspace/types.ts";
 
-const billingDb = supabase as any;
+// Cast to generic SupabaseClient so we can query tables not in the generated schema
+const billingDb = supabase as unknown as SupabaseClient;
 
 export interface WorkspaceLicense {
   workspace_id: string;

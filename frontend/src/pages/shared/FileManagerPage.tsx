@@ -110,8 +110,8 @@ export default function FileManagerPage({ workspaceId }: FileManagerPageProps) {
       setError(null);
       const data = await listAttachments(workspaceId);
       setFiles(data);
-    } catch (err: any) {
-      setError(err.message ?? "Failed to load files");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load files");
     } finally {
       setLoading(false);
     }

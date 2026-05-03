@@ -349,6 +349,12 @@
   border: 1px solid #fde68a;
 }
 
+.alert-success {
+  background: #e6f4ea;
+  color: #1a7431;
+  border: 1px solid #a7d8b6;
+}
+
 .alert-bar svg {
   flex-shrink: 0;
 }

@@ -59,8 +59,8 @@ export default function ProfessionalsPage({
       setFetchError(null)
       const data = await listProfessionals(workspaceId)
       setProfessionals(data)
-    } catch (err: any) {
-      setFetchError(err.message ?? 'Failed to load professionals')
+    } catch (err: unknown) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load professionals')
     } finally {
       setLoading(false)
     }

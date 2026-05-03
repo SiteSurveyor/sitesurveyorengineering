@@ -71,8 +71,8 @@ export default function JobsPage({
       setError(null);
       const data = await listJobs(workspaceId);
       setJobs(data);
-    } catch (err: any) {
-      setError(err.message ?? "Failed to load jobs");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load jobs");
     } finally {
       setLoading(false);
     }

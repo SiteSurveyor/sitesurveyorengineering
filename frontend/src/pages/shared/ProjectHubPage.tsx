@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import '../../styles/project-hub.css'
 import '../../styles/pages.css'
-import { listProjects, createProject, updateProject, archiveProject, unarchiveProject, deleteProject, listProjectMembers, listProjectActivities, createProjectActivity, deleteProjectActivity, type ProjectActivity } from '../../lib/repositories/projects.ts'
+import { listProjects, createProject, updateProject, archiveProject, unarchiveProject, deleteProject, listProjectMembers, listProjectActivities, createProjectActivity, deleteProjectActivity, type ProjectActivity, type ProjectUpdate } from '../../lib/repositories/projects.ts'
 import SelectDropdown from '../../components/SelectDropdown.tsx'
 import { listOrganizations, createOrganization } from '../../lib/repositories/organizations.ts'
 import type { OrganizationRow } from '../../lib/repositories/organizations.ts'
@@ -129,8 +129,8 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
 
   const [projectSidebarCollapsed, setProjectSidebarCollapsed] = useState(false)
   const [projectMobileMenuOpen, setProjectMobileMenuOpen] = useState(false)
-  const [toolSearchQuery, setToolSearchQuery] = useState('')
-  const [activeToolCategory, setActiveToolCategory] = useState<ToolFilter>('all')
+  const [toolSearchQuery, _setToolSearchQuery] = useState('')
+  const [activeToolCategory, _setActiveToolCategory] = useState<ToolFilter>('all')
   const [recentToolIds, setRecentToolIds] = useState<string[]>(() => {
     const raw = localStorage.getItem(RECENT_TOOLS_KEY)
     if (!raw) return []
@@ -144,7 +144,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
   })
 
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -185,9 +185,9 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
     } finally {
       setLoading(false)
     }
-  }
+  }, [workspaceId])
 
-  useEffect(() => { fetchProjects() }, [workspaceId])
+  useEffect(() => { fetchProjects() }, [fetchProjects])
 
   useEffect(() => {
     if (activeProjectId) localStorage.setItem(ACTIVE_PROJECT_KEY, activeProjectId)
@@ -245,12 +245,6 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
     }, {})
   }, [])
 
-  const pinnedTools = useMemo(() => PROJECT_TOOLS.filter(tool => tool.pinned), [])
-
-  const recentTools = useMemo(() => {
-    return recentToolIds.map(id => toolsById[id]).filter((tool): tool is ProjectTool => Boolean(tool))
-  }, [recentToolIds, toolsById])
-
   const filteredTools = useMemo(() => {
     const query = toolSearchQuery.trim().toLowerCase()
     return PROJECT_TOOLS.filter(tool => {
@@ -261,7 +255,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
     })
   }, [activeToolCategory, toolSearchQuery])
 
-  const groupedFilteredTools = useMemo(() => {
+  const _groupedFilteredTools = useMemo(() => {
     return TOOL_CATEGORIES.map(category => ({
       category,
       tools: filteredTools.filter(tool => tool.category === category),
@@ -319,11 +313,11 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
     await fetchProjects()
   }
 
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     if (!activeProjectId) return
     const logs = await listProjectActivities(activeProjectId)
     setActivities(logs)
-  }
+  }, [activeProjectId])
 
   useEffect(() => {
     if (activeProject) {
@@ -335,7 +329,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
       setEditDesc(activeProject.description)
       fetchActivities()
     }
-  }, [activeProject?.dbId])
+  }, [activeProject, fetchActivities])
 
   const handleUpdateProject = async () => {
     if (!activeProject) return
@@ -345,7 +339,7 @@ export default function ProjectHubPage({ userName, workspaceId, licenseTier, lic
         name: editName,
         phase: editPhase,
         datum: editDatum,
-        status: editStatus.toLowerCase().replace(/ /g, '_') as any, // Simple mapping
+        status: editStatus.toLowerCase().replace(/ /g, '_') as ProjectUpdate["status"],
         description: editDesc
       })
       await fetchProjects()
