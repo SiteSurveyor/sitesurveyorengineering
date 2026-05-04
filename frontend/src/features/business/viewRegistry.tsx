@@ -20,6 +20,8 @@ import AdminAuditPage from "../../pages/admin/AdminAuditPage";
 import AdminLicensesPage from "../../pages/admin/AdminLicensesPage";
 import AdminOverviewPage from "../../pages/admin/AdminOverviewPage";
 import AdminUsersPage from "../../pages/admin/AdminUsersPage";
+import AdminMarketplacePage from "../../pages/admin/AdminMarketplacePage";
+import AdminProfessionalsPage from "../../pages/admin/AdminProfessionalsPage";
 import AdminWorkspacesPage from "../../pages/admin/AdminWorkspacesPage";
 
 interface BusinessViewRegistryOptions {
@@ -126,6 +128,10 @@ export function renderBusinessView(
 
     case "admin_audit":
       return <AdminAuditPage isPlatformAdmin={user.isPlatformAdmin} />;
+    case "admin_marketplace":
+      return <AdminMarketplacePage isPlatformAdmin={user.isPlatformAdmin} />;
+    case "admin_professionals":
+      return <AdminProfessionalsPage isPlatformAdmin={user.isPlatformAdmin} />;
 
     case "profile":
     default:

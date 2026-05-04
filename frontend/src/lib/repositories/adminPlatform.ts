@@ -272,6 +272,122 @@ export interface AuditLogEntry {
   created_at: string;
 }
 
+/* ── Global Catalog (Marketplace & Professionals) ───────────────────── */
+
+export interface MarketplaceListing {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  price: number | null;
+  currency: string | null;
+  category: string | null;
+  is_global: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listAllMarketplaceListings(): Promise<MarketplaceListing[]> {
+  const { data, error } = await adminDb
+    .from("marketplace_listings")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as MarketplaceListing[] | null) ?? [];
+}
+
+export async function createMarketplaceListing(
+  patch: Omit<Partial<MarketplaceListing>, "id" | "created_at" | "updated_at">,
+): Promise<MarketplaceListing> {
+  const { data, error } = await adminDb
+    .from("marketplace_listings")
+    .insert({ ...patch, is_global: true })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as MarketplaceListing;
+}
+
+export async function updateMarketplaceListing(
+  id: string,
+  patch: Partial<Omit<MarketplaceListing, "id" | "created_at" | "updated_at">>,
+): Promise<MarketplaceListing> {
+  const { data, error } = await adminDb
+    .from("marketplace_listings")
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as MarketplaceListing;
+}
+
+export async function deleteMarketplaceListing(id: string): Promise<void> {
+  const { error } = await adminDb.from("marketplace_listings").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export interface Professional {
+  id: string;
+  workspace_id: string;
+  name: string;
+  title: string | null;
+  bio: string | null;
+  email: string | null;
+  phone: string | null;
+  is_global: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listAllProfessionals(): Promise<Professional[]> {
+  const { data, error } = await adminDb
+    .from("professionals")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as Professional[] | null) ?? [];
+}
+
+export async function createProfessional(
+  patch: Omit<Partial<Professional>, "id" | "created_at" | "updated_at">,
+): Promise<Professional> {
+  const { data, error } = await adminDb
+    .from("professionals")
+    .insert({ ...patch, is_global: true })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as Professional;
+}
+
+export async function updateProfessional(
+  id: string,
+  patch: Partial<Omit<Professional, "id" | "created_at" | "updated_at">>,
+): Promise<Professional> {
+  const { data, error } = await adminDb
+    .from("professionals")
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as Professional;
+}
+
+export async function deleteProfessional(id: string): Promise<void> {
+  const { error } = await adminDb.from("professionals").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/* ── Audit Log ────────────────────────────────────────────────────── */
+
 export async function listAuditLogs(opts: {
   limit: number;
   offset?: number;
