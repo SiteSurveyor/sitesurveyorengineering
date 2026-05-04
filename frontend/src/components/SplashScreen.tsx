@@ -38,7 +38,7 @@ export default function SplashScreen({ onFinish, duration = 3000 }: SplashScreen
         <img
           src="/logo.svg"
           alt="SiteSurveyor Logo"
-          className="splash-logo"
+          className="splash-logo app-logo"
         />
         <p className="splash-tagline">SiteSurveyor</p>
         <p className="splash-subtitle">Engineering Survey Management</p>

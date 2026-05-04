@@ -53,6 +53,7 @@ export default function ProfessionalsPage({
   const [pBio, setPBio] = useState('')
   const [pSkills, setPSkills] = useState('')
   const [pCerts, setPCerts] = useState('')
+  const [pIsGlobal, setPIsGlobal] = useState(false)
 
   const fetchPros = useCallback(async () => {
     try {
@@ -86,6 +87,7 @@ export default function ProfessionalsPage({
     setPBio('')
     setPSkills('')
     setPCerts('')
+    setPIsGlobal(false)
     setEditorOpen(true)
   }
 
@@ -105,6 +107,7 @@ export default function ProfessionalsPage({
     setPBio(p.bio ?? '')
     setPSkills((p.skills ?? []).join(', '))
     setPCerts((p.certifications ?? []).join(', '))
+    setPIsGlobal(p.is_global ?? false)
     setEditorOpen(true)
     setSelectedPro(null)
   }
@@ -141,6 +144,7 @@ export default function ProfessionalsPage({
         bio: pBio.trim() || null,
         skills: skillsArr.length ? skillsArr : null,
         certifications: certsArr.length ? certsArr : null,
+        is_global: isPlatformAdmin ? pIsGlobal : false,
       }
       if (editingId) {
         await updateProfessional(editingId, payload)
@@ -407,6 +411,16 @@ export default function ProfessionalsPage({
                 <input id="pro-editor-skills" className="input-field" value={pSkills} onChange={(e) => setPSkills(e.target.value)} />
                 <label className="form-label" htmlFor="pro-editor-certs">Certifications (comma-separated)</label>
                 <input id="pro-editor-certs" className="input-field" value={pCerts} onChange={(e) => setPCerts(e.target.value)} />
+                {isPlatformAdmin && (
+                  <label className="form-label" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={pIsGlobal}
+                      onChange={(e) => setPIsGlobal(e.target.checked)}
+                    />
+                    Visible to all accounts (global)
+                  </label>
+                )}
               </div>
             </div>
             <div className="billing-modal-actions">

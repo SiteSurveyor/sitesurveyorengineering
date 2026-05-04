@@ -86,6 +86,7 @@
   --shadow: rgba(0, 0, 0, 0.4) 0 10px 20px -4px;
   --shadow-sm: rgba(0, 0, 0, 0.35) 0 2px 6px;
   --shadow-hover: rgba(0, 0, 0, 0.5) 0 12px 28px;
+  color-scheme: dark;
 }
 
 
@@ -261,5 +262,22 @@ textarea.input-field {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ── App Logo Utilities ── */
+.app-logo {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* Ensure splash logo looks great on all screens */
+.splash-screen .splash-logo {
+  width: clamp(120px, 30vw, 200px);
+  height: auto;
+  max-width: 70vw;
+  object-fit: contain;
+  display: block;
 }
 

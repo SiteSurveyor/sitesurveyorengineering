@@ -1,403 +1,177 @@
-# Supabase backend structure for SiteSurveyor
+# Supabase CLI
 
-This project uses **Supabase** as the backend, database, auth provider, and file storage layer.
+[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=develop)](https://coveralls.io/github/supabase/cli?branch=develop) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
+](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
 
-## Hosted Supabase only (recommended)
+[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
 
-This repo targets **cloud Supabase**. You do **not** need Docker or `supabase start` on your machine.
+This repository contains all the functionality for Supabase CLI.
 
-1. Create a project at [supabase.com](https://supabase.com/dashboard).
-2. Put **Project URL** and **anon** key in `frontend/.env` (see `frontend/.env.example`).
-3. Link the CLI to that project and apply migrations:
+- [x] Running Supabase locally
+- [x] Managing database migrations
+- [x] Creating and deploying Supabase Functions
+- [x] Generating types directly from your database schema
+- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
 
-   ```bash
-   supabase login
-   supabase link --project-ref YOUR_PROJECT_REF
-   supabase db push
-   ```
+## Getting started
 
-   Your project ref is the subdomain of your Supabase URL (e.g. `https://abcdefgh.supabase.co` → `abcdefgh`).
+### Install the CLI
 
-**If the Supabase CLI is unavailable or broken on your machine:** from the repo root, run `./supabase/build-dashboard-bundle.sh`, then open the generated `supabase/bundle_apply_in_dashboard.sql` in **Dashboard → SQL Editor** and execute it on a **new/empty** database (not recommended for projects that already have schema).
-
-`db push` is preferred: it records migration history; the bundle is a one-shot fallback.
-
-**Do not use** `supabase start` or rely on `config.toml` ports unless you intentionally add local Docker development later.
-
-## Architecture principles
-
-### 1. Workspace-first multi-tenancy
-All business data belongs to a `workspace`.
-
-- A **personal** account is a workspace with `type = 'personal'`
-- A **business** account is a workspace with `type = 'business'`
-- A user can belong to multiple workspaces through `workspace_members`
-
-This keeps the data model consistent across:
-- projects
-- scheduling
-- dispatch
-- assets
-- quotes
-- invoices
-- files
-- future marketplace features
-
-### 2. Auth is handled by Supabase Auth
-`auth.users` remains the identity source of truth.
-
-A database trigger should automatically create:
-- a `profiles` row
-- the user's default workspace
-- the owner membership
-- workspace settings
-
-This means user signup stays simple while the app backend remains tenant-aware from day one.
-
-### 3. Row Level Security is the security boundary
-All client-facing tables should use RLS.
-
-Access should be controlled through helper functions such as:
-- `is_workspace_member(workspace_id)`
-- `can_manage_workspace(workspace_id)`
-- `can_manage_operations(workspace_id)`
-- `can_manage_finance(workspace_id)`
-- `can_manage_sales(workspace_id)`
-- `can_manage_assets(workspace_id)`
-
-This keeps policy logic reusable and avoids repeating large RLS conditions across many tables.
-
-### 4. Storage is bucket-based and workspace-scoped
-Files should be written into bucket paths using the workspace ID as the first path segment.
-
-Recommended conventions:
-- `avatars/<user_id>/avatar.png`
-- `workspace-private/<workspace_id>/projects/<project_id>/...`
-- `workspace-public/<workspace_id>/...`
-- `generated-docs/<workspace_id>/quotes/...`
-
-### 5. Keep backend logic split by responsibility
-Use the database for:
-- tenancy
-- RLS
-- transactional business logic
-- relational integrity
-- reporting views
-
-Use Edge Functions for:
-- external APIs
-- emails
-- payment webhooks
-- PDF generation
-- background tasks
-- integrations
-
----
-
-## Recommended schema domains
-
-### Identity and tenancy
-Core foundation tables:
-
-- `profiles`
-- `workspaces`
-- `workspace_settings`
-- `workspace_members`
-- `workspace_invitations`
-
-### CRM and project hub
-Operational customer and project data:
-
-- `organizations`
-- `contacts`
-- `projects`
-- `project_members`
-- `project_contacts`
-
-### Operations
-Scheduling, dispatch, and field execution:
-
-- `jobs`
-- `job_events`
-- `job_assignments`
-- `job_assignment_members`
-- `job_assignment_assets`
-
-### Assets and calibration
-Fleet and instrument management:
-
-- `assets`
-- `asset_calibrations`
-- `asset_maintenance_events`
-
-### Finance
-Revenue and billing records:
-
-- `quotes`
-- `quote_items`
-- `invoices`
-- `invoice_items`
-- `payments`
-
-### Files and notifications
-Cross-cutting support tables:
-
-- `attachments`
-- `notifications`
-
-### Internal-only schemas
-For secure backend operations:
-
-- `private.webhook_events`
-- `audit.activity_log`
-
----
-
-## Current migration strategy
-
-Migrations use Supabase’s usual **`YYYYMMDDHHMMSS_description.sql`** naming so ordering matches a **new greenfield project**. Files in [`supabase/migrations/`](supabase/migrations/) run in lexicographic order.
-
-**Baseline chain (initial schema):**
-
-| File | Purpose |
-|------|---------|
-| `20260503120000_extensions_and_schemas.sql` | `pgcrypto`, `private` / `audit` schemas |
-| `20260503120001_enums.sql` | Public enum types |
-| `20260503120002_tables_indexes.sql` | All base/domain tables, indexes, workspace license seed insert; `profiles.auth_signup_account_type` CHECK (`personal` \| `business` \| `platform_admin`) |
-| `20260503120003_functions.sql` | Helper functions, `handle_new_auth_user` (clamps signup path), RPCs, `is_platform_admin()` |
-| `20260503120004_triggers.sql` | Auth user trigger, license logging, `set_updated_at` |
-| `20260503120005_rls_policies.sql` | Enable RLS and table policies |
-| `20260503120006_storage.sql` | Storage buckets and `storage.objects` policies |
-| `20260503120007_post_deploy.sql` | Profile/workspace backfills, business-only enforcement, late tables (marketplace, time/expense, etc.) |
-
-**Adding changes after go-live:** create a new migration (never edit an already-applied file):
+Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
 
 ```bash
-supabase migration new add_my_feature
-# edit the new sql file, then:
-supabase db push
+npm i supabase --save-dev
 ```
 
-**Signup account types (app metadata):** `personal`, `business`, and `platform_admin` are stored in `profiles.auth_signup_account_type` (and clamped in the trigger). **Platform operator** access is separate: `profiles.is_platform_admin` (set in SQL), not the signup type.
+When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
 
-**Fresh database:** `supabase db push` applies the full chain. If an older single-file migration was already applied on an environment, do not rename history blindly—use Supabase **migration repair** or apply only to a new/empty project.
+```
+NODE_OPTIONS=--no-experimental-fetch yarn add supabase
+```
 
-It creates (collectively):
+> **Note**
+For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
 
-- extensions
-- enums
-- base tables
-- indexes
-- helper functions
-- signup triggers
-- RLS policies
-- storage buckets
-- storage policies
-- core RPC functions
+<details>
+  <summary><b>macOS</b></summary>
 
-Recommended RPC functions:
+  Available via [Homebrew](https://brew.sh). To install:
 
-- `create_business_workspace(workspace_name, workspace_slug)`
-- `accept_workspace_invitation(target_invitation_token)`
-- `set_default_workspace(target_workspace_id)`
+  ```sh
+  brew install supabase/tap/supabase
+  ```
 
----
+  To install the beta release channel:
+  
+  ```sh
+  brew install supabase/tap/supabase-beta
+  brew link --overwrite supabase-beta
+  ```
+  
+  To upgrade:
 
-## Frontend integration structure
+  ```sh
+  brew upgrade supabase
+  ```
+</details>
 
-Supabase frontend scaffolding should live in:
+<details>
+  <summary><b>Windows</b></summary>
 
-- `frontend/src/lib/supabase/client.ts`
-- `frontend/src/lib/supabase/types.ts`
-- `frontend/src/lib/auth/session.ts`
-- `frontend/src/lib/auth/app-user.ts`
-- `frontend/src/lib/repositories/profiles.ts`
-- `frontend/src/lib/repositories/workspaces.ts`
+  Available via [Scoop](https://scoop.sh). To install:
 
-### Suggested responsibilities
+  ```powershell
+  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+  scoop install supabase
+  ```
 
-#### `client.ts`
-Creates the browser Supabase client using:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+  To upgrade:
 
-#### `types.ts`
-Contains database typings.
+  ```powershell
+  scoop update supabase
+  ```
+</details>
 
-Initially, handwritten types are acceptable for the core tables, but these should later be replaced with generated types from Supabase.
+<details>
+  <summary><b>Linux</b></summary>
 
-#### `session.ts`
-Handles:
-- sign in
-- sign up
-- sign out
-- session retrieval
-- auth state subscription
+  Available via [Homebrew](https://brew.sh) and Linux packages.
 
-#### `app-user.ts`
-Builds the app-level authenticated context:
-- session
-- profile
-- default workspace
-- workspace memberships
+  #### via Homebrew
 
-#### `repositories/*.ts`
-Contains table-specific data access functions.
+  To install:
 
-Examples:
-- `getMyProfile()`
-- `updateMyProfile()`
-- `getMyWorkspaces()`
-- `getDefaultWorkspace()`
-- `switchDefaultWorkspace()`
+  ```sh
+  brew install supabase/tap/supabase
+  ```
 
----
+  To upgrade:
 
-## Setup workflow
+  ```sh
+  brew upgrade supabase
+  ```
 
-### 1. Create the frontend environment file
-Create a local env file from the example:
+  #### via Linux packages
 
-- `frontend/.env.example`
-- `frontend/.env`
+  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
 
-Example public variables:
+  ```sh
+  sudo apk add --allow-untrusted <...>.apk
+  ```
 
-- `VITE_SUPABASE_URL=https://your-project-ref.supabase.co`
-- `VITE_SUPABASE_ANON_KEY=your-supabase-anon-key`
+  ```sh
+  sudo dpkg -i <...>.deb
+  ```
 
-### 2. Keep secret keys out of the frontend
-Do **not** put the service role key in Vite or any client-side file.
+  ```sh
+  sudo rpm -i <...>.rpm
+  ```
 
-Use the service role key only in:
-- secure backend environments
-- Supabase Edge Functions
-- private server-side tooling
+  ```sh
+  sudo pacman -U <...>.pkg.tar.zst
+  ```
+</details>
 
-### 3. Link the Supabase project
-Typical workflow:
+<details>
+  <summary><b>Other Platforms</b></summary>
 
-1. Authenticate with Supabase
-2. Link the local project to the remote project
-3. Push migrations
+  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
 
-Common flow:
+  ```sh
+  go install github.com/supabase/cli@latest
+  ```
 
-- `supabase login`
-- `supabase link --project-ref YOUR_PROJECT_REF`
-- `supabase db push`
+  Add a symlink to the binary in `$PATH` for easier access:
 
-### 4. Generate database types
-After the schema is deployed, replace handwritten types with generated types:
+  ```sh
+  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
+  ```
 
-- `supabase gen types typescript --linked --schema public > frontend/src/lib/supabase/types.ts`
+  This works on other non-standard Linux distros.
+</details>
 
-This keeps the frontend aligned with the actual database schema.
+<details>
+  <summary><b>Community Maintained Packages</b></summary>
 
----
+  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
+  To install in your working directory:
 
-## Security rules
+  ```bash
+  pkgx install supabase
+  ```
 
-### Never trust the client for authorization
-The client may know who the user is, but only the database should decide what the user can read or write.
+  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
+</details>
 
-### Every tenant-owned row should have `workspace_id`
-This is the core boundary for multi-tenancy.
+### Run the CLI
 
-### Avoid direct unrestricted inserts for sensitive workflows
-Prefer RPC or secure backend functions for actions like:
-- creating business workspaces
-- accepting invitations
-- creating linked finance records
-- publishing generated documents
+```bash
+supabase bootstrap
+```
 
-### Use soft-delete or archived states where appropriate
-For business records, prefer:
-- `archived_at`
-- status transitions
+Or using npx:
 
-over hard deletes.
+```bash
+npx supabase bootstrap
+```
 
-### Keep auditability in mind
-Important actions should be traceable:
-- invite accepted
-- workspace created
-- quote accepted
-- invoice paid
-- assignment changed
-- calibration updated
+The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
 
----
+## Docs
 
-## Suggested implementation phases
+Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
 
-### Phase 1 — Foundation
-Build first:
+## Breaking changes
 
-- auth integration
-- profiles
-- workspaces
-- workspace memberships
-- workspace settings
-- invitations
-- RLS helper functions
-- storage structure
+We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
 
-### Phase 2 — Core operations
-Then add:
+However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
 
-- organizations
-- contacts
-- projects
-- jobs
-- schedule
-- dispatch
-- assets
-- calibration tracking
+## Developing
 
-### Phase 3 — Revenue
-Then add:
+To run from source:
 
-- quotes
-- invoices
-- payments
-- generated documents
-- finance automation
-
-### Phase 4 — Advanced platform features
-Then add:
-
-- marketplace
-- public professional profiles
-- public job board
-- advanced analytics
-- integrations
-
----
-
-## Non-negotiables
-
-- All business data must be scoped by `workspace_id`
-- Personal and business accounts must use the same workspace model
-- The anon key can be used in the frontend
-- The service role key must never be shipped to the frontend
-- All schema changes should be managed through migrations
-- Types should eventually be generated from the live schema
-- RLS should be enabled on every client-facing table
-- Sensitive workflows should move through RPC or secure backend logic
-
----
-
-## Summary
-
-The cleanest Supabase architecture for SiteSurveyor is:
-
-**`auth.users` → `profiles` → `workspaces` → `workspace_members`**
-
-with all business data keyed by `workspace_id`, RLS centered on workspace membership, file storage scoped by workspace, and operational logic split cleanly between SQL, RLS, RPC, and Edge Functions.
-
-This gives the project:
-- a strong multi-tenant foundation
-- consistent auth and authorization
-- clean separation of concerns
-- room to scale from prototype to production
+```sh
+# Go >= 1.22
+go run . help
+```

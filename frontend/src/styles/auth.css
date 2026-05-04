@@ -205,9 +205,8 @@
 
 .auth-logo {
   display: block;
-  width: auto;
-  height: clamp(40px, 8vh, 80px);
-  max-width: 90vw;
+  width: clamp(100px, 25vw, 180px);
+  height: clamp(40px, 10vh, 80px);
   margin: 0 auto 12px;
   object-fit: contain;
   object-position: center;

@@ -43,9 +43,8 @@
 }
 
 .splash-logo {
-  width: auto;
+  width: clamp(120px, 24vw, 240px);
   height: clamp(60px, 12vh, 120px);
-  max-width: 90vw;
   object-fit: contain;
   object-position: center;
   animation: splash-pulse 2s ease-in-out infinite;
@@ -110,9 +109,8 @@
 
 @media (max-width: 600px) {
   .splash-logo {
+    width: clamp(100px, 20vw, 160px);
     height: clamp(40px, 10vh, 80px);
-    width: auto;
-    max-width: 85vw;
   }
 
   .splash-tagline {
@@ -134,9 +132,8 @@
 
 @media (max-height: 520px) {
   .splash-logo {
+    width: clamp(80px, 15vw, 120px);
     height: clamp(30px, 8vh, 60px);
-    width: auto;
-    max-width: 75vw;
   }
 
   .splash-content {

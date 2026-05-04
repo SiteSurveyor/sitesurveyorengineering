@@ -105,9 +105,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     transition:
-        width var(--motion-slow) var(--ease-standard),
-        background var(--motion-fast) var(--ease-standard),
-        border-color var(--motion-fast) var(--ease-standard);
+        width var(--motion-slow) var(--ease-standard);
 }
 
 .hub-sidebar.collapsed {

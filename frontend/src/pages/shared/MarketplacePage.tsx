@@ -142,6 +142,7 @@ export default function MarketplacePage({
   const [mLocation, setMLocation] = useState('')
   const [mDescription, setMDescription] = useState('')
   const [mSpecs, setMSpecs] = useState('')
+  const [mIsGlobal, setMIsGlobal] = useState(false)
 
   const fetchListings = useCallback(async () => {
     try {
@@ -191,6 +192,7 @@ export default function MarketplacePage({
     setMLocation('')
     setMDescription('')
     setMSpecs('')
+    setMIsGlobal(false)
     setEditorOpen(true)
   }
 
@@ -205,6 +207,7 @@ export default function MarketplacePage({
     setMLocation(row.location)
     setMDescription(row.description ?? '')
     setMSpecs((row.specs ?? []).join(', '))
+    setMIsGlobal(row.is_global ?? false)
     setEditorOpen(true)
     setSelectedListing(null)
   }
@@ -236,6 +239,7 @@ export default function MarketplacePage({
         location: mLocation.trim(),
         description: mDescription.trim() || null,
         specs: specsArr.length ? specsArr : null,
+        is_global: isPlatformAdmin ? mIsGlobal : false,
       }
       if (editingId) {
         await updateMarketplaceListing(editingId, payload)
@@ -444,7 +448,17 @@ export default function MarketplacePage({
                 <label className="form-label" htmlFor="mkt-editor-desc">Description</label>
                 <textarea id="mkt-editor-desc" className="input-field" rows={3} value={mDescription} onChange={(e) => setMDescription(e.target.value)} />
                 <label className="form-label" htmlFor="mkt-editor-specs">Specs (comma-separated)</label>
-                <input id="mkt-editor-specs" className="input-field" value={mSpecs} onChange={(e) => setMSpecs(e.target.value)} placeholder='e.g. 5" accuracy, Bluetooth' />
+                <input id="mkt-editor-specs" className="input-field" value={mSpecs} onChange={(e) => setMSpecs(e.target.value)} />
+                {isPlatformAdmin && (
+                  <label className="form-label" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={mIsGlobal}
+                      onChange={(e) => setMIsGlobal(e.target.checked)}
+                    />
+                    Visible to all accounts (global)
+                  </label>
+                )}
               </div>
             </div>
             <div className="billing-modal-actions">

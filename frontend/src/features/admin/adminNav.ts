@@ -9,7 +9,5 @@ export const platformAdminNavGroup: WorkspaceNavGroup = {
     { view: "admin_users", label: "Users", icon: "users" },
     { view: "admin_workspaces", label: "Workspaces", icon: "building" },
     { view: "admin_audit", label: "Audit Log", icon: "clipboard" },
-    { view: "admin_marketplace", label: "Catalog", icon: "shopping" },
-    { view: "admin_professionals", label: "Pros", icon: "briefcase" },
   ],
 };

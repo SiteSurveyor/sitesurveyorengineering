@@ -57,8 +57,6 @@ export const ADMIN_PLATFORM_VIEWS: WorkspaceView[] = [
   "admin_users",
   "admin_workspaces",
   "admin_audit",
-  "admin_marketplace",
-  "admin_professionals",
 ];
 
 const FREE_BLOCKED_VIEWS: WorkspaceView[] = ["dispatch", "team", "timeTracking"];
