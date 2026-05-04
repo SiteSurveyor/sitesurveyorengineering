@@ -882,7 +882,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
               <SelectDropdown
                 className="input-field"
                 value={createForm.kind}
-                onChange={(val) => setCreateForm(f => ({ ...f, kind: val as AssetInsert["kind"] }))}
+                onChange={(val) => setCreateForm(f => ({ ...f, kind: val as "instrument" | "vehicle" | "equipment" | "other" }))}
                 options={[
                   { value: "instrument", label: "Instrument" },
                   { value: "vehicle", label: "Vehicle" },

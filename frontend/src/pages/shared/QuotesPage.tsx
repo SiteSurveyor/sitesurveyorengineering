@@ -10,6 +10,7 @@ import { listOrganizations } from "../../lib/repositories/organizations.ts";
 import { listProjects } from "../../lib/repositories/projects.ts";
 import {
   mapQuoteRowToUi,
+  type QuoteWithDetails,
   type UiQuote,
 } from "../../lib/mappers.ts";
 import type { OrganizationRow } from "../../lib/repositories/organizations.ts";
