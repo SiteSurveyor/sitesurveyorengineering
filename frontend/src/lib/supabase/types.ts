@@ -895,6 +895,7 @@ export type Database = {
           currency: string
           description: string | null
           id: string
+          is_global: boolean
           location: string
           name: string
           price: number
@@ -910,6 +911,7 @@ export type Database = {
           currency: string
           description?: string | null
           id?: string
+          is_global?: boolean
           location: string
           name: string
           price: number
@@ -925,6 +927,7 @@ export type Database = {
           currency?: string
           description?: string | null
           id?: string
+          is_global?: boolean
           location?: string
           name?: string
           price?: number
@@ -1234,6 +1237,7 @@ export type Database = {
           discipline: string
           experience: string
           id: string
+          is_global: boolean
           location: string
           name: string
           rate: number
@@ -1254,6 +1258,7 @@ export type Database = {
           discipline: string
           experience: string
           id?: string
+          is_global?: boolean
           location: string
           name: string
           rate: number
@@ -1274,6 +1279,7 @@ export type Database = {
           discipline?: string
           experience?: string
           id?: string
+          is_global?: boolean
           location?: string
           name?: string
           rate?: number

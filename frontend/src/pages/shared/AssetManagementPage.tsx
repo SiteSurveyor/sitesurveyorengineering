@@ -61,7 +61,7 @@ export default function AssetManagementPage({ workspaceId }: AssetManagementPage
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [selectedAsset, setSelectedAsset] = useState<Instrument | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: '', kind: 'instrument' as const, category: '', make: '', model: '', serial_number: '', purchase_date: '', purchase_cost: '' });
+  const [createForm, setCreateForm] = useState({ name: '', kind: 'instrument' as 'instrument' | 'vehicle' | 'equipment' | 'other', category: '', make: '', model: '', serial_number: '', purchase_date: '', purchase_cost: '' });
   const [saving, setSaving] = useState(false);
 
   const fetchAssets = useCallback(async () => {

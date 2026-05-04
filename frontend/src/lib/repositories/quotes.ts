@@ -11,6 +11,7 @@ export type QuoteItemInsert = TablesInsert<"quote_items">;
 export interface QuoteWithDetails extends QuoteRow {
   organization_name: string | null;
   project_name: string | null;
+  [key: string]: unknown;
 }
 
 export async function listQuotes(

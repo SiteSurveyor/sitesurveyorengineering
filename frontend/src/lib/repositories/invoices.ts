@@ -11,6 +11,7 @@ export type InvoiceItemInsert = TablesInsert<"invoice_items">;
 export interface InvoiceWithDetails extends InvoiceRow {
   organization_name: string | null;
   project_name: string | null;
+  [key: string]: unknown;
 }
 
 export async function listInvoices(
